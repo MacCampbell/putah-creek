@@ -1,0 +1,26 @@
+---
+title: "100-basics"
+output: html_document
+date: "2023-07-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+meta<-read.csv("meta/PUTSampleBarcodes_062623.csv") %>% separate(SampleName, into=c("Trib","Species","Method","Year","Number"), remove = FALSE) 
+meta
+```
+```{r}
+meta %>% group_by(Year, Method) %>% summarize(Count=n())
+```
+
+Lots of samples over several years!         
+
+
+
