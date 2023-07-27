@@ -17,7 +17,7 @@ meta<-read.csv("meta/PUTSampleBarcodes_062623.csv") %>% separate(SampleName, int
 meta
 ```
 ```{r}
-meta %>% group_by(Year, Method) %>% summarize(Count=n())
+meta %>% group_by(PlateName, Year, Method) %>% summarize(Count=n())
 ```
 
 Lots of samples over several years!         
@@ -59,4 +59,27 @@ module load parallel
 srun -p high -t 02:00:00 --nodes=1 --ntasks-per-node=1 --cpus-per-task=9 parallel -j 9 < 100.1-combine.sh    
 
 Set up some scripts to demultiplex in scripts    
+
+Checking barcodes `grep GGACAAGCTATGCAGG  --color PUT014RAD-R1.fastq `     
+
+Looks like they're there!     
+
+Rename
+PUT014RAD_RA_GGAAACATCGTGCAGG.fastq
+   Well          SampleName Trib Species Method Year Number PlateName PlateBarcodeName PlateBarcodeSeq SampleBarcode
+1    A1  PC_CHN_CS_2020-020   PC     CHN     CS 2020    020 PUT017rad       NEBNext 34          CATGGC      ACAAGCTA
+2    B1  PC_CHN_CS_2020-022   PC     CHN     CS 2020    022 PUT017rad       NEBNext 34          CATGGC      AACAACCA
+3    C1  PC_CHN_CS_2020-023   PC     CHN     CS 2020    023 PUT017rad       NEBNext 34          CATGGC      AGATCGCA
+
+```{r}
+rename<-meta %>% as_tibble()
+rename$Plate<-gsub("rad","",rename$PlateName)
+forward<-rename %>% mutate(SeqFile=paste0(Plate,"RAD_RA_GG",SampleBarcode,"TGCAGG.fastq")) %>% dplyr::select(SeqFile,SampleName) %>%
+  mutate(Command=paste0("mv data/raw/",SeqFile," data/split/",SampleName,"-R1.fastq"))
+reverse<-rename %>% mutate(SeqFile=paste0(Plate,"RAD_RB_GG",SampleBarcode,"TGCAGG.fastq")) %>% dplyr::select(SeqFile,SampleName) %>%
+  mutate(Command=paste0("mv data/raw/",SeqFile," data/split/",SampleName,"-R2.fastq"))
+
+files<-bind_rows(forward,reverse) 
+write_tsv(files %>% select(Command), col_names = FALSE, file="100.2-rename-fish.sh")
+```
 
