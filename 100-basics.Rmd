@@ -23,4 +23,36 @@ meta %>% group_by(Year, Method) %>% summarize(Count=n())
 Lots of samples over several years!         
 
 
+Have raw data.  Looks like nine plates sequenced on two lanes. 
+230720_HiSeq_Run751      
+HS: PE 150+8+8+150      
 
+Lane 1 Project_ASEF_BMAG077_L1         
+PUT014RAD	CAAAAG
+PUT015RAD	CAACTA
+PUT016RAD	CAGGCG
+PUT017RAD	CATGGC
+PUT018RAD	CATTTT
+PUT019RAD	CCAACA
+PUT020RAD	ACAGTG
+PUT021RAD	GCCAAT
+PUT022RAD	TAATCG
+
+Lane 2     Project_ASEF_BMAG077_L2
+
+
+PUT014RAD	CAAAAG
+PUT015RAD	CAACTA
+PUT016RAD	CAGGCG
+PUT017RAD	CATGGC
+PUT018RAD	CATTTT
+PUT019RAD	CCAACA
+PUT020RAD	ACAGTG
+PUT021RAD	GCCAAT
+PUT022RAD	TAATCG
+
+Putting in data/raw     
+
+check md5, combine lanes.       
+See 100.1-combine.sh   
+srun -p high -t 02:00:00 --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 parallel -j 9 < 100.1-combine.sh
