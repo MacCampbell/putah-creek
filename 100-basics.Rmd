@@ -54,5 +54,9 @@ PUT022RAD	TAATCG
 Putting in data/raw     
 
 check md5, combine lanes.       
-See 100.1-combine.sh   
-srun -p high -t 02:00:00 --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 parallel -j 9 < 100.1-combine.sh
+See 100.1-combine.sh     
+module load parallel     
+srun -p high -t 02:00:00 --nodes=1 --ntasks-per-node=1 --cpus-per-task=9 parallel -j 9 < 100.1-combine.sh    
+
+Set up some scripts to demultiplex in scripts    
+
