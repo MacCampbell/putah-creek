@@ -85,8 +85,52 @@ write_tsv(files %>% select(Command), col_names = FALSE, file="100.2-rename-fish.
 
 Moved and renamed   
 
-(base) maccamp@farm:~/putah-creek/data/split$ ls | grep R1 > forward
-(base) maccamp@farm:~/putah-creek/data/split$ ls | grep R2 > reverse
+(base) maccamp@farm:~/putah-creek/data/split$ ls | grep R1 | perl -pe 's/.fastq//g'  > forward
+(base) maccamp@farm:~/putah-creek/data/split$ ls | grep R2 | perl -pe 's/.fastq//g' > reverse
 (base) maccamp@farm:~/putah-creek/data/split$ ls | grep R1 | perl -pe 's/-R1.fastq//g' > names
 (base) maccamp@farm:~/putah-creek/data/split$ paste forward reverse names > to-align.txt
 bash ../../doAlign-rad-unzipped.sh to-align.txt /home/maccamp/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna 
+
+counting up reads 
+awk '{n++} END {print FILENAME "\t" n/4}' PC_CHN_CS_2020-024-R1.fastq
+for f in *R1.fastq; do awk '{n++} END {print FILENAME "\t" n/4}' $f >> raw-counts.txt; done;
+
+```{r}
+counts<-meta %>% as_tibble() %>% mutate(SeqFile=paste0(SampleName,"-R1.fastq"))
+raw<-read_tsv("outputs/100/raw-counts.txt", col_names = c("SeqFile","RawCounts")) %>% mutate(ReadCount=2*RawCounts) %>% select(-RawCounts)
+
+counts <-counts %>% left_join(raw) %>% select(-SeqFile)
+
+
+files<-list.files(path="outputs/100", patter="*.stats", full.names = TRUE)
+reads<-lapply(files, read.csv, header=FALSE, col.names=c("SampleName","Aligned","Filtered","Coverage"))
+reads<-bind_rows(reads)
+
+counts<-left_join(counts,reads)
+
+write_csv(counts, "meta/putah-creek-meta-with-counts.csv")
+
+```
+
+```{r}
+ggplot(counts) +
+  geom_histogram(aes(x=ReadCount, fill=Method), color="black") +
+  scale_fill_viridis_d(option="plasma") +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  ylab("Count\n") +
+  xlab("\nReads")
+
+ggplot(counts) +
+  geom_histogram(aes(x=Filtered, fill=Method), color="black") +
+  scale_fill_viridis_d(option="plasma") +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  ylab("Count\n") +
+  xlab("\nReads")
+```
+
+
+```{r}
+counts %>% filter(Filtered > 1.5e5) %>% group_by(Method, Year) %>% summarize(Count=n())
+```
