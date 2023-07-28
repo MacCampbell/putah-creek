@@ -89,3 +89,4 @@ Moved and renamed
 (base) maccamp@farm:~/putah-creek/data/split$ ls | grep R2 > reverse
 (base) maccamp@farm:~/putah-creek/data/split$ ls | grep R1 | perl -pe 's/-R1.fastq//g' > names
 (base) maccamp@farm:~/putah-creek/data/split$ paste forward reverse names > to-align.txt
+bash ../../doAlign-rad-unzipped.sh to-align.txt /home/maccamp/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna 
