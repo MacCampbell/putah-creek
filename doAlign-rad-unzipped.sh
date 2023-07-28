@@ -5,7 +5,7 @@
 
 #Requires a path to indexed reference genome (ref, $2)
 
-#bash ../doAlign-rad-unzipped.sh files.txt /home/maccamp/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna 
+#bash ../../doAlign-rad-unzipped.sh to-align.txt /home/maccamp/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna 
 
 list=$1
 ref=$2
@@ -34,7 +34,7 @@ do
        rmdup=\$(samtools view -c ${c3}.sort.flt.bam)
        depth=\$(samtools depth -a ${c3}.sort.flt.bam | awk '{sum+="\$3"} END {print sum/NR}' )
        echo \"${c3},\${reads},\${rmdup},\${depth}\"  > ${c3}.stats" > ${c3}.sh
-       sbatch -p med -t 2-10:00:00 --mem=8G ${c3}.sh
+       sbatch -p bigmemm -t 2-10:00:00 --mem=8G ${c3}.sh
 
        x=$(( $x + 1 ))
 

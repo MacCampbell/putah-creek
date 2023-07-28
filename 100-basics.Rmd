@@ -17,7 +17,7 @@ meta<-read.csv("meta/PUTSampleBarcodes_062623.csv") %>% separate(SampleName, int
 meta
 ```
 ```{r}
-meta %>% group_by(PlateName, Year, Method) %>% summarize(Count=n())
+meta %>% group_by(PlateName) %>% summarize(Count=n())
 ```
 
 Lots of samples over several years!         
@@ -83,3 +83,9 @@ files<-bind_rows(forward,reverse)
 write_tsv(files %>% select(Command), col_names = FALSE, file="100.2-rename-fish.sh")
 ```
 
+Moved and renamed   
+
+(base) maccamp@farm:~/putah-creek/data/split$ ls | grep R1 > forward
+(base) maccamp@farm:~/putah-creek/data/split$ ls | grep R2 > reverse
+(base) maccamp@farm:~/putah-creek/data/split$ ls | grep R1 | perl -pe 's/-R1.fastq//g' > names
+(base) maccamp@farm:~/putah-creek/data/split$ paste forward reverse names > to-align.txt
