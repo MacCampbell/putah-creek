@@ -119,7 +119,9 @@ ggplot(counts) +
   theme_bw() +
   theme(panel.grid = element_blank()) +
   ylab("Count\n") +
-  xlab("\nReads")
+  xlab("\nReads") +
+  ggtitle("Raw Read Count") +
+  theme(plot.title = element_text(hjust=0.5))
 
 ggplot(counts) +
   geom_histogram(aes(x=Filtered, fill=Method), color="black") +
@@ -127,10 +129,12 @@ ggplot(counts) +
   theme_bw() +
   theme(panel.grid = element_blank()) +
   ylab("Count\n") +
-  xlab("\nReads")
+  xlab("\nReads") +
+  ggtitle("Filtered Read Count") +
+  theme(plot.title = element_text(hjust=0.5))
 ```
 
 
 ```{r}
-counts %>% filter(Filtered > 1.5e5) %>% group_by(Method, Year) %>% summarize(Count=n())
+counts %>% filter(Filtered > 1e5) %>% group_by(Method, Year) %>% summarize(Count=n())
 ```
