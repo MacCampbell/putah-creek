@@ -103,10 +103,10 @@ counts <-counts %>% left_join(raw) %>% select(-SeqFile)
 
 
 files<-list.files(path="outputs/100", patter="*.stats", full.names = TRUE)
-reads<-lapply(files, read.csv, header=FALSE, col.names=c("SampleName","Aligned","Filtered","Coverage"))
+reads<-lapply(files, read.csv, header=FALSE, col.names=c("SampleName","Reads","Filtered","Coverage"))
 reads<-bind_rows(reads)
 
-counts<-left_join(counts,reads)
+counts<-left_join(counts,reads) %>% select(-ReadCount)
 
 write_csv(counts, "meta/putah-creek-meta-with-counts.csv")
 
@@ -114,7 +114,7 @@ write_csv(counts, "meta/putah-creek-meta-with-counts.csv")
 
 ```{r}
 ggplot(counts) +
-  geom_histogram(aes(x=ReadCount, fill=Method), color="black") +
+  geom_histogram(aes(x=Reads, fill=Method), color="black") +
   scale_fill_viridis_d(option="plasma") +
   theme_bw() +
   theme(panel.grid = element_blank()) +
