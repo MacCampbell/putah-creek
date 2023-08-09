@@ -1,0 +1,45 @@
+---
+title: "101-first-call"
+output: html_document
+date: "2023-08-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+meta<-read_csv("meta/putah-creek-meta-with-counts.csv") %>% mutate(Path=paste0("data/split/",SampleName,".sort.flt.bam"))
+meta %>% group_by(Method, Year) %>% summarise(Count=n())
+```
+
+
+Let's get a subset of fish and try some things. I suspect the CS samples to be problematic.    
+
+```{r}
+df1<-meta %>% filter(Filtered > 1e5) 
+df1 %>% group_by(Method, Year)  %>% mutate(Mean=mean(Filtered), Median=median(Filtered), Max=max(Filtered)) %>% select(Method, Year, Mean, Median, Max) %>% unique()
+```
+
+Can try df1 here....
+
+```{r}
+write_tsv(df1 %>% select(Path), col_names = FALSE, file="bamlists/243.bamlist")
+```
+
+Generate covariance matrix with -doIBS
+
+```{sh, eval=FALSE}
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/243.bamlist -r NC_056429.1 \
+-ref  genome/GCF_018296145.1_Otsh_v2.0_genomic.fna\
+-minInd 183 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
+-out outputs/101/243-ibs > outputs/101/243-ibs.out 2> outputs/101/243-ibs.err &
+```
+

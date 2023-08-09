@@ -13,7 +13,7 @@ library(tidyverse)
 ```
 
 ```{r}
-meta<-read.csv("meta/PUTSampleBarcodes_062623.csv") %>% separate(SampleName, into=c("Trib","Species","Method","Year","Number"), remove = FALSE) 
+meta<-read_csv("meta/PUTSampleBarcodes_062623.csv") %>% separate(SampleName, into=c("Trib","Species","Method","Year","Number"), remove = FALSE) 
 meta
 ```
 ```{r}
@@ -110,6 +110,10 @@ counts<-left_join(counts,reads) %>% select(-ReadCount)
 
 write_csv(counts, "meta/putah-creek-meta-with-counts.csv")
 
+```
+```{r}
+median(counts$Reads)
+median(counts$Filtered)
 ```
 
 ```{r}
