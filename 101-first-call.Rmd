@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
 ```{r}
 library(tidyverse)
+library(RcppCNPy)
+library(viridis)
 ```
 
 ```{r}
@@ -22,7 +24,8 @@ Let's get a subset of fish and try some things. I suspect the CS samples to be p
 
 ```{r}
 df1<-meta %>% filter(Filtered > 1e5) 
-df1 %>% group_by(Method, Year)  %>% mutate(Mean=mean(Filtered), Median=median(Filtered), Max=max(Filtered)) %>% select(Method, Year, Mean, Median, Max) %>% unique()
+df1 %>% group_by(Method, Year)  %>% mutate(Mean=mean(Filtered), Median=median(Filtered), Max=max(Filtered)) %>% select(Method, Year, Mean, Median, Max) %>%
+  mutate(Count=n()) %>% unique() %>% arrange(Method,Year)
 ```
 
 Can try df1 here....
@@ -36,10 +39,238 @@ Generate covariance matrix with -doIBS
 ```{sh, eval=FALSE}
 srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
 -bam bamlists/243.bamlist -r NC_056429.1 \
--ref  genome/GCF_018296145.1_Otsh_v2.0_genomic.fna\
--minInd 183 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 122 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
 -out outputs/101/243-ibs > outputs/101/243-ibs.out 2> outputs/101/243-ibs.err &
+```
+
+with minInd 183
+	-> Number of sites retained after filtering: 0 
+
+with minInd 122
+	-> Number of sites retained after filtering: 134 
+
+```{sh, eval=FALSE}
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/243.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 122 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
+-out outputs/101/243-ibs > outputs/101/243-ibs.out 2> outputs/101/243-ibs.err &
+
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/243.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 182 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
+-out outputs/101/243-ibs-75 > outputs/101/243-ibs-75.out 2> outputs/101/243-ibs-75.err &
+
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/243.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 219 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
+-out outputs/101/243-ibs-90 > outputs/101/243-ibs-90.out 2> outputs/101/243-ibs-90.err &
+
+## GLS
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/243.bamlist -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 182 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/101/243-gl-75 > outputs/101/243-gl-75.out 2> outputs/101/243-gl-75.err &
+```
+
+50% doIBS      
+	-> Number of sites retained after filtering: 3443     
+75% doIBS      
+	-> Number of sites retained after filtering: 552      
+	
+75% beagle
+  -> Number of sites retained after filtering: 552      
+
+```{r}
+pcm<-df1
+m <- as.matrix(read.table("outputs/101/243-ibs-75.covMat"))
+eig <- eigen(m)
+var<-eig$values/sum(eig$values)
+cumvar<-cumsum(eig$values)/sum(eig$values)
+
+head(var)
+head(cumvar)
+
+
+covs<-eig$vectors[,1:3] %>% as_tibble() %>% bind_cols(pcm) 
+
+#text12<-covs %>% select(Run, Pop, V1, V2) %>%
+ # group_by(Pop) %>% summarize(Count=n(), x=mean(V1), y=mean(V2))
+covs$Year<-as.factor(covs$Year)
+ggplot(covs) +
+  geom_point(aes(x=V1, y=V2, fill=Year, shape=Method), alpha=0.75) +
+#  geom_text_repel(data=text12, aes(x=x, y=y, label=Pop), max.overlaps = Inf) +
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = "")) +
+  ylab(paste("PC2", " ", round((100*var[2]),2), "%", sep = "")) +
+  theme_bw() +
+  theme(panel.grid=element_blank()) +
+  scale_fill_viridis_d(option="H") +
+  guides(fill = guide_legend(override.aes = list(pch=22))) +
+  scale_shape_manual(values=c(21,23))
+
+
+```
+
+
+```{r}
+ggplot(covs) +
+  geom_point(aes(x=V1, y=V3, fill=Year, shape=Method), alpha=0.75) +
+#  geom_text_repel(data=text12, aes(x=x, y=y, label=Pop), max.overlaps = Inf) +
+  xlab(paste("PC1", " ", round((100*var[1]),2), "%", sep = "")) +
+  ylab(paste("PC3", " ", round((100*var[3]),2), "%", sep = "")) +
+  theme_bw() +
+  theme(panel.grid=element_blank()) +
+  scale_fill_viridis_d(option="H") +
+  guides(fill = guide_legend(override.aes = list(pch=22))) +
+  scale_shape_manual(values=c(21,23))
+```
+Seems fine.    
+
+What about relationships? can use older PCAngsd or ngsRelate...
+
+PCAngsd goes something like this (using 3,443 sites and 243 samples)
+
+```{sh, eval=FALSE}
+conda activate py2
+
+python $HOME/pcangsd/pcangsd.py -beagle outputs/101/243-ibs.beagle.gz -kinship -o outputs/101/243-ibs -threads 10
+
+python $HOME/pcangsd/pcangsd.py -beagle outputs/101/243-ibs.beagle.gz -relate outputs/101/243-ibs.kinship.npy -o outputs/101/243-ibs-kin-removed -threads 10
+
+
+srun -p high -t 1:00:00 --nodes=1 python $HOME/pcangsd/pcangsd.py -beagle outputs/101/243-ibs.beagle.gz -kinship -o outputs/101/243-ibs-10 -threads 10 -minMaf 0.10
+
+srun -p high -t 1:00:00 --nodes=1 python $HOME/pcangsd/pcangsd.py -beagle outputs/101/243-ibs-75.beagle.gz -kinship -o outputs/101/243-ibs-75 -threads 10 
+srun -p high -t 1:00:00 --nodes=1 python $HOME/pcangsd/pcangsd.py -beagle outputs/101/243-ibs-90.beagle.gz -kinship -o outputs/101/243-ibs-90 -threads 10 
+
+```
+
+Keeping 243 individuals after filtering (removing 0)
+
+ruh-roh
+
+Higher MAF
+Number of sites after MAF filtering (0.1): 2413
+
+     
+```{r}
+kin<-npyLoad("outputs/101/243-ibs-75.kinship.npy")
+
+#Convert upper half of matrix to data frame compatible 
+kinrind<-which(upper.tri(kin, diag = TRUE), arr.ind = TRUE)
+kin<-cbind(kinrind, kin[kinrind])
+
+kindf<-as_tibble(kin) %>%
+  rename(Ind1=row, Ind2=col, Kinship=V3) %>%
+  filter(Ind1 != Ind2) %>%
+  mutate(Mean=mean(Kinship))
+
+
+#Can I replace Ind1 and Ind2 with individual labels???
+df<-kindf %>% left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind1"="Individual")) %>% dplyr::rename(Year1=Year, Method1=Method, SampleName1=SampleName) %>%
+  left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind2"="Individual")) %>% dplyr::rename(Year2=Year, Method2=Method,  SampleName2=SampleName)
+
+kinship<-df %>% select(Ind1, Ind2, Kinship, SampleName1, SampleName2, Method1, Year1, Method2, Year2)
+```
+
+```{r}
+#Ahh, and what are our "related" individuals
+kinship %>% filter(Kinship>0.0625)
+
+```
+
+high<-df %>% filter(Kinship>0.0625)
+
+#filter to the same pops and get those locations with closely related individuals
+popdf<-df %>% filter(Location1==Location2) %>% mutate(Population=Location1) %>%
+  filter(Population %in% high$Location1)
+
+```{r}
+#Plotting 
+cols<-viridis(6)
+
+
+ggplot(kinship)+geom_histogram(aes(x=Kinship), bins=50, fill="grey", color="grey") +
+  geom_vline(xintercept =.25, col=cols[1]) + #Parent offspring/full sibs
+  geom_vline(xintercept =.125, col=cols[2]) + #2nd degree
+  geom_vline(xintercept =.0625, col=cols[3]) + # 3rd
+  geom_vline(xintercept = .0313, col=cols[4]) +
+  geom_vline(xintercept = .0156, col=cols[5]) +
+  geom_vline(xintercept = 0.0, col=cols[6]) +
+  scale_x_continuous(breaks=c(0,0.0156, 0.0313, 0.0625, 0.125, 0.25),
+                     labels=c("0 / Unrelated","5th Deg.","4th Deg.","3rd Deg.", "2nd Deg.", "1st Deg.")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust=1, angle=45)) +
+  theme(panel.grid=element_blank()) +
+  ylab("Count") +
+  xlab("Kinship Coefficient")
+```
+#  facet_wrap(Population ~ ., ncol=3, scales="free_y")
+
+
+#Looking at more fish
+
+
+
+```{r}
+df2<-meta %>% filter(Filtered > 5e4) 
+df2 %>% group_by(Method, Year)  %>% mutate(Mean=mean(Filtered), Median=median(Filtered), Max=max(Filtered)) %>% select(Method, Year, Mean, Median, Max) %>%
+  mutate(Count=n()) %>% unique() %>% arrange(Method,Year)
+```
+
+
+
+```{r}
+write_tsv(df2 %>% select(Path), col_names = FALSE, file="bamlists/383.bamlist")
+```
+
+
+```{sh, eval=FALSE}
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/383.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 192 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
+-out outputs/101/383-ibs > outputs/101/383-ibs.out 2> outputs/101/383-ibs.err &
+
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/383.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 287 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
+-out outputs/101/383-ibs-75 > outputs/101/383-ibs-75.out 2> outputs/101/383-ibs-75.err &
+
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/383.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 345 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doIBS 1 -doCounts 1 -doCov 1 -makeMatrix 1 -minMaf 0.05 \
+-out outputs/101/383-ibs-90 > outputs/101/383-ibs-90.out 2> outputs/101/383-ibs-90.err &
+
+## GLS
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/383.bamlist -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 287 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/101/383-gl-75 > outputs/101/383-gl-75.out 2> outputs/101/383-gl-75.err &
 ```
 
