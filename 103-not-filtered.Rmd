@@ -78,3 +78,18 @@ srun -p high -t 15:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
 -out outputs/103/343-gl-75 > outputs/103/343-gl-75.out 2> outputs/103/343-gl-75.err &
 ```
 
+Calls
+
+```{sh, eval=FALSE}
+srun -t 15:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 309 -bam bamlists/343.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/103/343-snps > outputs/103/343-snps.out 2> outputs/103/343-snps.err &
+
+srun -t 15:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 257 -bam bamlists/343.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/103/343-snps-75 > outputs/103/343-snps-75.out 2> outputs/103/343-snps75.err &
+```
