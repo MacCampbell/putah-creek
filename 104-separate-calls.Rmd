@@ -59,3 +59,30 @@ srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/104/rst-snps > outputs/104/rst20-snps.out 2> outputs/104/rst20-snps.err &
 ```
+
+336 snps here.
+
+```{r}
+css<-read_tsv("outputs/104/cs-snps.geno.gz", col_names = FALSE) 
+css<-css %>% select(X1,X2) %>% rename(Chrom=X1, Pos=X2) %>% mutate(Site=paste0(Chrom,"-",Pos))
+
+rss<-read_tsv("outputs/104/rst-snps.geno.gz", col_names = FALSE) 
+rss<-rss %>% select(X1,X2) %>% rename(Chrom=X1, Pos=X2)  %>% mutate(Site=paste0(Chrom,"-",Pos))
+
+```
+
+```{r}
+shared<-css %>% filter(Site %in% rss$Site)
+shared
+write_tsv(shared %>% select(Chrom, Pos), col_names = FALSE, file="meta/sites-63.tsv")
+```
+
+What about 243 calls?
+
+```{sh, eval=FALSE}
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \ 
+-bam bamlists/243.bamlist  -rf meta/sites-63.tsv \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/104/243-snps > outputs/104/243-snps.out 2> outputs/104/243-snps.err &
+```
