@@ -39,6 +39,23 @@ srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -minInd 15 -bam bamlists/cs17.bamlist  -rf meta/chrom-list.txt \
 -ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
--doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/102/243-snps > outputs/104/cs17-snps.out 2> outputs/104/cs17-snps.err &
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/104/cs-snps > outputs/104/cs17-snps.out 2> outputs/104/cs17-snps.err &
 ```
+ 106 snps
+ 
+ 
+```{r}
+rst<-meta %>% filter(Method=="RST") %>% filter(Filtered > 3.4e5) %>% filter(Filtered< 4.5e5)
+rst %>% summarise(Count=n(), Mean=mean(Filtered), Median=median(Filtered)) 
 
+write_tsv(rst %>% select(Path), col_names = FALSE, file="bamlists/rst20.bamlist")
+
+``` 
+
+```{sh, eval=FALSE}
+srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 18 -bam bamlists/rst20.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/104/rst-snps > outputs/104/rst20-snps.out 2> outputs/104/rst20-snps.err &
+```
