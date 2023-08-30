@@ -173,3 +173,4 @@ plot(pca1$li)
 gen@pop<-factor(paste0(df1$Method,"-",df1$Year))
 poppr(gen)
 ```
+

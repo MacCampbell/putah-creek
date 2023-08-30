@@ -1,0 +1,59 @@
+---
+title: "106-ngs-relate"
+output: html_document
+date: "2023-08-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(vcfR)
+library(adegenet)
+```
+
+
+```{r}
+meta<-read_csv("meta/putah-creek-meta-with-counts.csv") %>% mutate(Path=paste0("data/split/",SampleName,".sort.flt.bam")) %>%
+  mutate(Pop=paste0(Method,"-",Year))
+meta %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+```
+
+
+
+```{r}
+m92<-meta %>% filter(Pop %in% c("CS-2017","RST-2018")) %>% filter(Filtered > 1e5) %>% filter(Filtered<2.5e5)
+m92 %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+```
+
+```{r}
+m92 %>% select(Path) %>% write_tsv(file="bamlists/92.bamlist", col_names = FALSE)
+```
+
+
+https://github.com/ANGSD/NgsRelate
+
+```{sh, eval=FALSE}
+### First we generate a file with allele frequencies (angsdput.mafs.gz) and a file with genotype likelihoods (angsdput.glf.gz).
+./angsd -b filelist -gl 2 -domajorminor 1 -snp_pval 1e-6 -domaf 1 -minmaf 0.05 -doGlf 3
+
+srun -t 4:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12  \
+$HOME/angsd/angsd -nthreads 24 \
+-bam bamlists/92.bamlist -rf meta/chrom-list.txt \
+-minMaf 0.10 -minMapQ 10 -minQ 20 \
+-GL 2 -doMajorMinor 1 -SNP_pval 1e-6 -doMaf 1 -minMaf 0.05 -doGLF 3 \
+-out outputs/106/angsdput > outputs/106/relate.out 2> outputs/106/relate.err &
+
+### Then we extract the frequency column from the allele frequency file and remove the header (to make it in the format NgsRelate needs)
+
+zcat angsdput.mafs.gz | cut -f5 |sed 1d >freq
+
+### run NgsRelate
+./ngsrelate  -g angsdput.glf.gz -n 100 -f freq  -O newres
+```
+
+compiled ngsRelate locally    
+
