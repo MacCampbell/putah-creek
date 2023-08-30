@@ -96,3 +96,40 @@ $HOME/angsd/angsd -nthreads 24 \
 ```
 
 (0 on chrom1)
+(0 on chrom2)
+
+```{r}
+m88<-meta %>% filter(Method =="RST") %>% filter(Filtered > 2e5) %>% filter(Filtered < 5e5)
+m88 %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+write_csv(m88, file="meta/88.csv")
+m88 %>% select(Path) %>% write_tsv("bamlists/88.bamlist", col_names = FALSE)
+
+```
+
+```{sh, eval=FALSE}
+srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12  \
+$HOME/angsd/angsd -nthreads 24 \
+-minInd 66 -bam bamlists/88.bamlist -r NC_056430.1  \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/105/88-snps-75 > outputs/105/88-snps-75.out 2> outputs/105/88-snps-75.err &
+```
+
+13 sites at minMaf 0.05
+1 site at minMaf 0.10
+
+```{r}
+m31<-meta %>% filter(Method =="RST") %>% filter(Filtered > 3e5) %>% filter(Filtered < 5e5)
+m31 %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+m31 %>% select(Path) %>% write_tsv("bamlists/31.bamlist", col_names = FALSE)
+
+```
+
+```{sh, eval=FALSE}
+srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12  \
+$HOME/angsd/angsd -nthreads 24 \
+-minInd 23 -bam bamlists/31.bamlist -r NC_056430.1  \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/105/31-snps-75 > outputs/105/31-snps-75.out 2> outputs/105/31-snps-75.err &
+```
