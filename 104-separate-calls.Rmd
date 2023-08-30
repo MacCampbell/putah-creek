@@ -10,6 +10,9 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
 ```{r}
 library(tidyverse)
+library(adegenet)
+library(vcfR)
+library(outliers)
 ```
 
 Let's separate Carcass Samples from others and get calls and find overlaps     
@@ -43,6 +46,7 @@ srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 ```
  106 snps
  
+ call from these is an option too
  
 ```{r}
 rst<-meta %>% filter(Method=="RST") %>% filter(Filtered > 3.4e5) %>% filter(Filtered< 4.5e5)
@@ -78,14 +82,111 @@ write_tsv(shared %>% select(Chrom, Pos), col_names = FALSE, file="meta/sites-63.
 ```
 
 What about the set of 243 individuals ? 
+
 Combining with chroms 
 (base) Macs-MacBook-Pro-2:meta mac$ cut -f 1 sites-63.tsv | sort | uniq > sites-63-chroms.tsv
 
+Have 63 SNPS
 
 ```{sh, eval=FALSE}
 srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
 -bam bamlists/243.bamlist  -rf meta/sites-63-chroms.tsv -sites meta/sites-63.tsv \
 -ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
--doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/104/243-snps > outputs/104/243-snps.out 2> outputs/104/243-snps.err &
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/104/243-snps-restricted > outputs/104/243-snps.out 2> outputs/104/243-snps.err &
+
+
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-bam bamlists/243.bamlist  -rf meta/sites-63-chroms.tsv -sites meta/sites-63.tsv \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/104/243-snps-restricted-geno4 > outputs/104/243-snps-geno4.out 2> outputs/104/243-snps-geno4.err &
+
+```
+
+
+```{sh,eval=FALSE}
+plink --tped outputs/104/243-snps-restricted.tped --tfam outputs/104/243-snps-restricted.tfam --out outputs/104/243-snps-binary --recode --allow-extra-chr --noweb
+plink --ped outputs/104/243-snps-binary.ped --map outputs/104/243-snps-binary.map --recode vcf --allow-extra-chr -out outputs/104/243-snps-samples-recode
+
+bcftools reheader --samples bamlists/243-sample-names.txt -o outputs/104/243.renamed.vcf  outputs/104/243-snps-samples-recode.vcf  
+
+#vcftools --vcf outputs/104/243.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.1 --max-maf 0.4 --out outputs/104/243-filtered --recode
+
+#pruning, may not remove things within 10000 bp...
+
+bcftools +prune -l 0.1 -w 10000 outputs/104/243.renamed.vcf -Ov -o outputs/104/243.renamed.pruned.vcf 
+
+vcftools --vcf outputs/104/243.renamed.pruned.vcf --relatedness2 --out outputs/104/243-renamed-pruned
+```
+
+
+```{r}
+vcf<-read.vcfR(file="outputs/104/243.renamed.pruned.vcf")
+genind<-vcfR2genind(vcf)
+
+gen<-genind
+X <- tab(gen, NA.method="mean")
+
+pca1 <- dudi.pca(X,scannf=FALSE,scale=FALSE,nf=3)
+plot(pca1$li)
+```
+
+45 variants
+
+
+```{r}
+m243<-read_csv("meta/243.csv")
+pcs<-as_tibble(pca1$l1) %>% bind_cols(m243)
+
+var<-pca1$eig/sum(pca1$eig) * 100
+var
+```
+
+```{r}
+ggplot(pcs) +
+  geom_point(aes(x=RS1, y=RS2, fill=Method), pch=21)
+```
+
+Colony
+
+(base) Macs-MacBook-Pro-2:104 mac$ cut -f 2 -d ',' ../../meta/243.csv  > 243-names.txt
+
+Peek's script requires AA GG format, sigh.  
+
+Trying that out and then getting calls from 102
+
+(base) Macs-MacBook-Pro-2:104 mac$ scp farm:~/putah-creek/outputs/102/*dogeno4* .
+ 
+ perl Geno2Colony.pl 243-snps-75-dogeno4.geno 243-names.txt  > test.dat
+ 
+ making up a header
+
+(base) maccamp@farm:~/putah-creek/outputs/104$ srun -p high -t 12:00:00 $HOME/colony/colony2s.ifort.out IFN:./test.dat > colony.out 2> colony.err &
+
+
+```{r}
+source("outputs/104/apparent.R")
+```
+
+```{r}
+InputFile <- read.table(file="outputs/104/apparent_TestData.txt",sep="\t",h=F)
+apparentOUT <- apparent(InputFile, MaxIdent=0.10, alpha=0.01, nloci=300, self=TRUE, plot=TRUE, Dyad=FALSE)
+
+```
+```{r}
+apparentOUT$Triad_all
+apparentOUT$Triad_sig
+```
+
+Can restrict to 2017 CS and 2018 RST
+
+```{r}
+infile <- read.table(file="outputs/104/apparent2017-2018.txt",sep="\t",h=F)
+aout <- apparent(infile, MaxIdent=0.10, alpha=0.01, nloci=41, self=TRUE, plot=TRUE, Dyad=TRUE)
+```
+
+```{r}
+aout$Triad_sig
+aout$Dyad_sig
 ```

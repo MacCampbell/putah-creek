@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 library(tidyverse)
 library(vcfR)
 library(adegenet)
+library(poppr)
 ```
 
 
@@ -28,6 +29,8 @@ Let's get a subset of fish and try some things. I suspect the CS samples to be p
 df1<-meta %>% filter(Filtered > 1e5) 
 df1 %>% group_by(Method, Year)  %>% mutate(Mean=mean(Filtered), Median=median(Filtered), Max=max(Filtered)) %>% select(Method, Year, Mean, Median, Max) %>%
   mutate(Count=n()) %>% unique() %>% arrange(Method,Year)
+
+write_csv(df1,"meta/243.csv")
 ```
 
 Trying some calls.    
@@ -47,6 +50,12 @@ srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/102/243-snps-75 > outputs/102/243-snps-75.out 2> outputs/102/243-snps75.err &
+
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 182 -bam bamlists/243.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/102/243-snps-75-dogeno4 > outputs/102/243-snps-75.out 2> outputs/102/243-snps75.err &
 ```
 
 	-> Number of sites retained after filtering: 0  -r NC_056429.1      
@@ -77,7 +86,12 @@ java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/102/243.renamed.pruned.vcf  ou
 
 vcftools --gzvcf outputs/102/beagle-imputed.vcf.gz --relatedness2 --out outputs/102/beagle-imputed
 
+java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/102/243.renamed.vcf  out=outputs/102/beagle-imputed-renamed > outputs/102/beagle-impute-stdout.txt 
+
 ```    
+235 snps imputed 
+
+
 
 160 variants.
 86 after filter
@@ -101,4 +115,61 @@ https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3025716/
 
 ```{r}
 relatedness<-read_tsv("outputs/102/243-renamed-pruned.relatedness2") %>% filter(RELATEDNESS_PHI < 0.3) %>% filter(RELATEDNESS_PHI > 0.2)
+```
+
+
+## Call at 50% thresh
+
+Calling, converting to vcf, renaming, then imputing.
+```{sh, eval=FALSE}
+srun -t 12:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 122 -bam bamlists/243.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/102/243-snps-50-dogeno4 > outputs/102/243-snps-50.out 2> outputs/102/243-snps-50.err &
+  
+plink --tped outputs/102/243-snps-50-dogeno4.tped --tfam outputs/102/243-snps-50-dogeno4.tfam --out outputs/102/243-snps-50-binary --recode --allow-extra-chr --noweb
+
+plink --ped outputs/102/243-snps-50-binary.ped --map outputs/102/243-snps-50-binary.map --recode vcf --allow-extra-chr -out outputs/102/243-snps-50-recode
+
+bcftools reheader --samples bamlists/243-sample-names.txt -o outputs/102/243-50.renamed.vcf  outputs/102/243-snps-50-recode.vcf  
+
+#Filtering
+vcftools --vcf outputs/102/243-50.renamed.vcf    --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.1 --max-maf 0.40 --out outputs/102/243-filtered --recode 
+
+#206 variants with maf @ 0.1
+#446 variants with maf @ 0.05
+
+#Impute 206 variants
+java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/102/243-filtered.recode.vcf  out=outputs/102/243-50-beagle-imputed > outputs/102/beagle-impute-stdout.txt 
+
+#Impute all variants (throws error bc angsd calls all 0/0 and ./. genos)
+java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/102/243-50.renamed.vcf   out=outputs/102/243-50-unfiltered-imputed > outputs/102/beagle-impute-stdout.txt 
+
+#Prune
+bcftools +prune -l 0.3 -w 10000 outputs/102/243-50-beagle-imputed.vcf.gz  -Ov -o outputs/102/243-50-beagle-imputed-pruned.vcf 
+#142 variants
+
+bcftools +prune -l 0.3 -w 10000 outputs/102/243-50-unfiltered-imputed.vcf.gz  -Ov -o outputs/102/243-50-beagle-imputed-unfiltered-pruned.vcf 
+
+#142 variatns
+```
+
+972 snps total
+142 variants after filtering/imputing
+
+```{r}
+vcf<-read.vcfR(file="outputs/102/243-50-beagle-imputed-pruned.vcf")
+genind<-vcfR2genind(vcf)
+
+gen<-genind
+X <- tab(gen, NA.method="mean")
+
+pca1 <- dudi.pca(X,scannf=FALSE,scale=FALSE,nf=3)
+plot(pca1$li)
+```
+
+```{r}
+gen@pop<-factor(paste0(df1$Method,"-",df1$Year))
+poppr(gen)
 ```
