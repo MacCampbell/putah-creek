@@ -43,17 +43,40 @@ https://github.com/ANGSD/NgsRelate
 srun -t 4:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12  \
 $HOME/angsd/angsd -nthreads 24 \
 -bam bamlists/92.bamlist -rf meta/chrom-list.txt \
--minMaf 0.10 -minMapQ 10 -minQ 20 \
+-minMapQ 10 -minQ 20 \
 -GL 2 -doMajorMinor 1 -SNP_pval 1e-6 -doMaf 1 -minMaf 0.05 -doGLF 3 \
 -out outputs/106/angsdput > outputs/106/relate.out 2> outputs/106/relate.err &
 
 ### Then we extract the frequency column from the allele frequency file and remove the header (to make it in the format NgsRelate needs)
 
-zcat angsdput.mafs.gz | cut -f5 |sed 1d >freq
+zcat outputs/106/angsdput.mafs.gz | cut -f5 | sed 1d > outputs/106/freq.frq
 
 ### run NgsRelate
-./ngsrelate  -g angsdput.glf.gz -n 100 -f freq  -O newres
+# doing locally, -n is the number of samples
+
+ ~/github/ngsRelate/ngsRelate  -g outputs/106/angsdput.glf.gz -n 92 -f outputs/106/freq.frq  -O outputs/106/newres
 ```
+	-> Number of sites retained after filtering: 111590      
+	
 
 compiled ngsRelate locally    
 
+"The first two columns contain indices of the two individuals used for the analysis. The third column is the number of genomic sites considered. The following nine columns are the maximum likelihood (ML) estimates of the nine jacquard coefficients, where K0==J9; K1==J8; K2==J7 in absence of inbreeding. Based on these Jacquard coefficients, NgsRelate calculates 11 summary statistics:"
+
+rab is the pairwise relatedness
+
+
+```{r}
+rel<-read_tsv(file = "outputs/106/newres")
+rel
+```
+
+```{r}
+ggplot(rel) +
+  geom_histogram(aes(x=theta))
+```
+
+```{r}
+ggplot(rel %>%  filter(theta > 0.04)) +
+  geom_histogram(aes(x=theta))
+```
