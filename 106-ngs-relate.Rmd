@@ -69,6 +69,8 @@ rab is the pairwise relatedness
 ```{r}
 rel<-read_tsv(file = "outputs/106/newres")
 rel
+
+write_tsv(rel, file="outputs/106/rel-92.csv")
 ```
 
 ```{r}
@@ -79,4 +81,181 @@ ggplot(rel) +
 ```{r}
 ggplot(rel %>%  filter(theta > 0.04)) +
   geom_histogram(aes(x=theta))
+```
+
+
+More fish!
+
+```{r}
+m196<-meta %>% filter(Filtered > 1e5) %>% filter(Filtered<3e5)
+m196 %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+
+m196 %>% select(Path) %>% write_tsv(file="bamlists/196.bamlist", col_names = FALSE)
+```
+
+```{sh, eval=FALSE}
+srun -t 4:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12  \
+$HOME/angsd/angsd -nthreads 24 \
+-bam bamlists/196.bamlist -rf meta/chrom-list.txt \
+-minMapQ 10 -minQ 20 \
+-GL 2 -doMajorMinor 1 -SNP_pval 1e-6 -doMaf 1 -minMaf 0.05 -doGLF 3 \
+-out outputs/106/angsdput-196 > outputs/106/relate-196.out 2> outputs/106/relate-196.err &
+
+### Then we extract the frequency column from the allele frequency file and remove the header (to make it in the format NgsRelate needs)
+
+zcat outputs/106/angsdput-196.mafs.gz | cut -f5 | sed 1d > outputs/106/freq-196.frq
+
+### run NgsRelate
+# doing locally, -n is the number of samples
+
+ ~/github/ngsRelate/ngsRelate  -g outputs/106/angsdput-196.glf.gz -n 196 -f outputs/106/freq-196.frq  -O outputs/106/newres-196.tsv
+```
+
+	-> Frequency file: 'outputs/106/freq-196.frq' contain 151512 number of sites
+
+
+```{r}
+rel<-read_tsv(file = "outputs/106/newres-196.tsv")
+rel
+
+write_tsv(rel, file="outputs/106/rel-196.csv")
+```
+
+
+```{r}
+ggplot(rel) +
+  geom_histogram(aes(x=theta))
+```
+
+
+```{r}
+ggplot(rel %>%  filter(theta > 0.04)) +
+  geom_histogram(aes(x=theta))
+```
+
+
+0.125 should be something
+
+
+```{r}
+rel %>% filter(theta > 0.12) 
+```
+
+Getting sample names
+```{r}
+as<-m196 %>% select(SampleName) %>% mutate(a=1:n()-1) %>% rename(SampleA=SampleName)
+bs<-m196 %>% select(SampleName) %>% mutate(b=1:n()-1) %>% rename(SampleB=SampleName)
+comb<-left_join(rel,as) %>% left_join(bs) %>% relocate(SampleA, SampleB)
+write_csv(comb %>% select(SampleA, SampleB, nSites, theta, rab, Fa, Fb, fraternity) %>% arrange(-theta), file="outputs/106/rel-196.csv")
+
+comb %>% select(SampleA, SampleB, nSites, theta, rab, Fa, Fb, fraternity) %>% arrange(-theta) %>% filter( theta>0.1)
+
+```
+
+```{r}
+ggplot(comb) + 
+  geom_point(aes(x=R1, y=R0))
+
+```
+
+```{r}
+ggplot(comb) + 
+  geom_point(aes(x=R1, y=KING))
+
+```
+
+```{r}
+comb %>% filter(theta > 0.125) %>% arrange(-rab) %>% select(rab,theta, SampleA, SampleB, nSites) 
+```
+
+## 243 fish
+
+
+```{sh, eval=FALSE}
+srun -t 4:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12  \
+$HOME/angsd/angsd -nthreads 24 \
+-bam bamlists/243.bamlist -rf meta/chrom-list.txt \
+-minMapQ 10 -minQ 20 \
+-GL 2 -doMajorMinor 1 -SNP_pval 1e-6 -doMaf 1 -minMaf 0.05 -doGLF 3 \
+-out outputs/106/angsdput-243 > outputs/106/relate-243.out 2> outputs/106/relate-243.err &
+
+### Then we extract the frequency column from the allele frequency file and remove the header (to make it in the format NgsRelate needs)
+
+zcat outputs/106/angsdput-243.mafs.gz | cut -f5 | sed 1d > outputs/106/freq-243.frq
+
+### run NgsRelate
+# doing locally, -n is the number of samples
+
+ ~/github/ngsRelate/ngsRelate  -g outputs/106/angsdput-243.glf.gz -n 243 -f outputs/106/freq-243.frq  -O outputs/106/newres-243.tsv
+```
+
+	-> Frequency file: 'outputs/106/freq-243.frq' contain 171816 number of sites    
+
+
+```{r}
+rel<-read_tsv(file = "outputs/106/newres-243.tsv")
+rel
+
+write_tsv(rel, file="outputs/106/rel-243.csv")
+```
+
+
+```{r}
+ggplot(rel) +
+  geom_histogram(aes(x=theta))
+```
+
+
+```{r}
+ggplot(rel %>%  filter(theta > 0.06)) +
+  geom_histogram(aes(x=theta))
+```
+```{r}
+ggplot(rel %>%  filter(rab > 0.06)) +
+  geom_histogram(aes(x=rab))
+
+```
+
+
+Getting sample names
+```{r}
+as<-m243 %>% select(SampleName) %>% mutate(a=1:n()-1) %>% rename(SampleA=SampleName)
+bs<-m243 %>% select(SampleName) %>% mutate(b=1:n()-1) %>% rename(SampleB=SampleName)
+comb<-left_join(rel,as) %>% left_join(bs) %>% relocate(SampleA, SampleB)
+write_csv(comb %>% select(SampleA, SampleB, nSites, theta, rab, Fa, Fb, theta, fraternity) %>% arrange(-theta), file="outputs/106/rel-243.csv")
+
+```
+
+```{r}
+ggplot(comb) + 
+  geom_point(aes(x=R1, y=R0)) +
+  geom_hline(yintercept = 0, linetype=2)
+```
+
+```{r}
+ggplot(comb) + 
+  geom_point(aes(x=R1, y=KING)) +
+  geom_hline(yintercept = 0, linetype=2)
+```
+
+```{r}
+comb %>% filter(R1 > 0.25) %>% relocate(theta, rab)
+```
+
+
+```{r}
+comb %>% filter(rab > 0.1) %>% arrange(-rab) %>% select(rab,theta, SampleA, SampleB, nSites)
+
+
+```
+```{r}
+comb %>% select(SampleA, SampleB, nSites, rab,theta) %>%
+  filter(SampleA %in% c("PC_CHN_CS_2017_142A","PC_CHN_CS_2017_162A","PC_CHN_CS_2017_233A","PC_CHN_CS_2017_129D")) %>% arrange(-rab)
+```
+
+
+```{r}
+comb %>% filter(SampleA == "PC_CHN_RST_2018_432") %>% arrange(-rab) %>% relocate(rab, theta)
+comb %>% filter(SampleB == "PC_CHN_RST_2018_432") %>% arrange(-rab) %>% relocate(rab, theta)
+
 ```
