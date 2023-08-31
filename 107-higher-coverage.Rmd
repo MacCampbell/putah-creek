@@ -25,5 +25,63 @@ meta %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
 
 
 ```{r}
-meta %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+m99<-meta %>%  filter(Filtered > 2e5 ) %>% filter(Method=="RST")
+m99 %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+```
+
+
+```{r}
+ggplot(m99) +
+  geom_histogram(aes(x=Filtered))
+```
+
+
+Downsampling
+```{r}
+m<-meta %>%  mutate(Frac=5e5/Filtered)  %>% 
+  mutate(NewPath=ifelse(Filtered > 5e5, paste0("data/downsample/",SampleName,".reduced.bam"),
+                     paste0("data/split/",SampleName,".sort.flt.bam")))
+                     
+downsample<-m %>% filter(Filtered > 5e5 ) %>%
+  mutate(ReductionCommand = paste0("samtools view -bs ",Frac, " ", "/home/maccamp/putah-creek/data/split/",
+                                   SampleName, ".sort.flt.bam"," > ",
+                                   "/home/maccamp/putah-creek/data/downsample/",
+                                   SampleName,".reduced.bam" )) 
+
+write_csv(downsample$ReductionCommand %>% as_tibble(), "107.1-downsample.sh", col_names = FALSE)
+
+write_tsv(m %>% filter(Filtered > 2e5) %>% filter(Method=="RST") %>%
+            select(NewPath), col_names = FALSE, file="bamlists/downsample-99.bamlist")
+
+write_csv(m, file="meta/meta-with-downsampled-path.csv")
+```
+
+
+```{sh eval=FALSE}
+srun -p high -t 04:00:00 --nodes=1 parallel -j 10 < 107.1-downsample.sh > outputs/107/downsample.stdout 2> outputs/107/downsample.stderr
+```
+
+```{sh, eval=FALSE}
+srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 89 -bam bamlists/downsample-99.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.10 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/107/99-snps > outputs/107/99-snps.out 2> outputs/107/99-snps.err &
+```
+
+
+More inds:
+
+```{r}
+write_tsv(m %>% filter(Filtered > 1e5) %>% filter(Method=="RST") %>%
+            select(NewPath), col_names = FALSE, file="bamlists/downsample-211.bamlist")
+```
+
+
+```{sh, eval=FALSE}
+srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 190 -bam bamlists/downsample-211.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.10 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/107/211-snps > outputs/107/211-snps.out 2> outputs/107/211-snps.err &
 ```
