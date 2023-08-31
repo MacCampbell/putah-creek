@@ -219,6 +219,7 @@ ggplot(rel %>%  filter(rab > 0.06)) +
 
 Getting sample names
 ```{r}
+m243<-filter(meta, Filtered > 1e5)
 as<-m243 %>% select(SampleName) %>% mutate(a=1:n()-1) %>% rename(SampleA=SampleName)
 bs<-m243 %>% select(SampleName) %>% mutate(b=1:n()-1) %>% rename(SampleB=SampleName)
 comb<-left_join(rel,as) %>% left_join(bs) %>% relocate(SampleA, SampleB)

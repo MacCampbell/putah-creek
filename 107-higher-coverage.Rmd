@@ -1,0 +1,29 @@
+---
+title: "107-higher-coverage"
+output: html_document
+date: "2023-08-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(vcfR)
+library(adegenet)
+```
+
+## Get higher coverage inds and downsample as necessary
+
+```{r}
+meta<-read_csv("meta/putah-creek-meta-with-counts.csv") %>% mutate(Path=paste0("data/split/",SampleName,".sort.flt.bam")) %>%
+  mutate(Pop=paste0(Method,"-",Year))
+meta %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+```
+
+
+```{r}
+meta %>% group_by(Method, Year,Pop) %>% summarise(Count=n())
+```

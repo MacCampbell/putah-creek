@@ -1,0 +1,13 @@
+samtools view -bs 0.798303764161909 /home/maccamp/putah-creek/data/split/PC_CHN_CS_2017_156C.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_CS_2017_156C.reduced.bam
+samtools view -bs 0.811451199324873 /home/maccamp/putah-creek/data/split/PC_CHN_CS_2017_142A.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_CS_2017_142A.reduced.bam
+samtools view -bs 0.986553278809822 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_2287.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_2287.reduced.bam
+samtools view -bs 0.77800305288398 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_2293.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_2293.reduced.bam
+samtools view -bs 0.38033167965119 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_2452.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_2452.reduced.bam
+samtools view -bs 0.925685933276558 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_4440.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_4440.reduced.bam
+samtools view -bs 0.54119992682977 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_4493.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_4493.reduced.bam
+samtools view -bs 0.969431874144476 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_4528.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_4528.reduced.bam
+samtools view -bs 0.60637224464452 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_4538.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_4538.reduced.bam
+samtools view -bs 0.8869431327541 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_4582.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_4582.reduced.bam
+samtools view -bs 0.905678969409787 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2021_4639.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2021_4639.reduced.bam
+samtools view -bs 0.522384161312229 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2018_738.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2018_738.reduced.bam
+samtools view -bs 0.712876256087963 /home/maccamp/putah-creek/data/split/PC_CHN_RST_2018_2241.sort.flt.bam > /home/maccamp/putah-creek/data/downsample/PC_CHN_RST_2018_2241.reduced.bam
