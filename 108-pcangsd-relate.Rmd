@@ -1,0 +1,147 @@
+---
+title: "108-pcangsd-relate"
+output: html_document
+date: "2023-09-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(RcppCNPy)
+library(viridis)
+```
+
+
+Using 1e5 and up individuals, and those downsampled, calc some relatedness coefficients     
+
+```{r}
+meta<-read_csv("meta/meta-with-downsampled-path.csv")
+
+m243<- meta %>% filter(Filtered > 1e5)
+write_tsv(m243 %>% select(NewPath), file="bamlists/243-downsampled.tsv", col_names = FALSE)
+```
+
+Generate GL file
+75% beagle
+  -> Expected Number of sites retained after filtering: 552      
+
+
+```{sh, eval=FALSE}
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/243.bamlist -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 182 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/108/243-gl-75 > outputs/108/243-gl-75.out 2> outputs/108/243-gl-75.err &
+
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/243.bamlist -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 122 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/108/243-gl-50 > outputs/108/243-gl-50.out 2> outputs/108/243-gl-50.err &
+```
+75% 552 sites
+50% 3443 sites    
+
+```{sh}
+conda activate py2
+
+srun -p high -t 01:00:00 --nodes=1 --mem=32G python $HOME/pcangsd/pcangsd.py -beagle outputs/108/243-gl-75.beagle.gz -kinship -o outputs/108/243-gl-75 -threads 10
+srun -p high -t 01:00:00 --nodes=1 --mem=32G python $HOME/pcangsd/pcangsd.py -beagle outputs/108/243-gl-50.beagle.gz -kinship -o outputs/108/243-gl-50 -threads 10
+
+
+conda deactivate;
+
+```
+
+
+```{r}
+pcm<-m243
+kin<-npyLoad("outputs/108/243-gl-75.kinship.npy")
+
+#Convert upper half of matrix to data frame compatible 
+kinrind<-which(upper.tri(kin, diag = TRUE), arr.ind = TRUE)
+kin<-cbind(kinrind, kin[kinrind])
+
+kindf<-as_tibble(kin) %>%
+  rename(Ind1=row, Ind2=col, Kinship=V3) %>%
+  filter(Ind1 != Ind2) %>%
+  mutate(Mean=mean(Kinship))
+
+
+#Can I replace Ind1 and Ind2 with individual labels???
+df<-kindf %>% left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind1"="Individual")) %>% dplyr::rename(Year1=Year, Method1=Method, SampleName1=SampleName) %>%
+  left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind2"="Individual")) %>% dplyr::rename(Year2=Year, Method2=Method,  SampleName2=SampleName)
+
+
+kinship<-df %>% select(Ind1, Ind2, Kinship, SampleName1, SampleName2, Method1, Year1, Method2, Year2)
+```
+
+
+Note, this is consistent between 50/75 data sets
+```{r}
+#What are our "related" individuals
+kinship %>% filter(Kinship>0.0625)
+
+```
+```{r}
+cols<-viridis(6)
+
+hist<-ggplot(kinship)+geom_histogram(aes(x=Kinship), bins=50, fill="grey", color="grey") +
+  geom_vline(xintercept =.25, col=cols[1]) + #Parent offspring/full sibs
+  geom_vline(xintercept =.125, col=cols[2]) + #2nd degree
+  geom_vline(xintercept =.0625, col=cols[3]) + # 3rd
+  geom_vline(xintercept = .0313, col=cols[4]) +
+  geom_vline(xintercept = .0156, col=cols[5]) +
+  geom_vline(xintercept = 0.0, col=cols[6]) +
+  scale_x_continuous(breaks=c(0,0.0156, 0.0313, 0.0625, 0.125, 0.25),
+                     labels=c("0 / Unrelated","5th Deg.","4th Deg.","3rd Deg.", "2nd Deg.", "1st Deg.")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust=1, angle=45)) +
+  theme(panel.grid=element_blank()) +
+  ylab("Count") +
+  xlab("Kinship Coefficient")
+
+hist
+#  facet_grid(Method1 ~ Method2)
+```
+```{r}
+hist +
+  xlim(.0313,.5)
+```
+
+## Boost sample sizes
+
+```{r}
+m301<-meta %>% filter(Filtered>7.5e4)
+
+write_tsv(m301 %>% select(NewPath), file="bamlists/301-downsampled.tsv", col_names = FALSE)
+```
+
+Generate GL files
+
+
+```{sh, eval=FALSE}
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/301.bamlist -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 226 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/108/301-gl-75 > outputs/108/301-gl-75.out 2> outputs/108/301-gl-75.err &
+
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/301.bamlist -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 151 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/108/301-gl-50 > outputs/108/301-gl-50.out 2> outputs/108/301-gl-50.err &
+```
+

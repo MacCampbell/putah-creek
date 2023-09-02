@@ -68,6 +68,9 @@ srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -minMaf 0.10 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/107/99-snps > outputs/107/99-snps.out 2> outputs/107/99-snps.err &
 ```
+	-> Number of sites retained after filtering: 87 
+
+:/     
 
 
 More inds:
@@ -85,3 +88,6 @@ srun -t 2:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -minMaf 0.10 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/107/211-snps > outputs/107/211-snps.out 2> outputs/107/211-snps.err &
 ```
+
+	-> Number of sites retained after filtering: 45 
+

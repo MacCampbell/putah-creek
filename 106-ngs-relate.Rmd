@@ -249,6 +249,7 @@ comb %>% filter(rab > 0.1) %>% arrange(-rab) %>% select(rab,theta, SampleA, Samp
 
 
 ```
+
 ```{r}
 comb %>% select(SampleA, SampleB, nSites, rab,theta) %>%
   filter(SampleA %in% c("PC_CHN_CS_2017_142A","PC_CHN_CS_2017_162A","PC_CHN_CS_2017_233A","PC_CHN_CS_2017_129D")) %>% arrange(-rab)
@@ -258,5 +259,13 @@ comb %>% select(SampleA, SampleB, nSites, rab,theta) %>%
 ```{r}
 comb %>% filter(SampleA == "PC_CHN_RST_2018_432") %>% arrange(-rab) %>% relocate(rab, theta)
 comb %>% filter(SampleB == "PC_CHN_RST_2018_432") %>% arrange(-rab) %>% relocate(rab, theta)
+
+```
+
+	PC_CHN_RST_2018_2483
+```{r}
+
+comb %>% filter(SampleA == "PC_CHN_RST_2021_2462") %>% arrange(-theta) %>% relocate(rab, theta)
+comb %>% filter(SampleB == "PC_CHN_RST_2021_2462") %>% arrange(-theta) %>% relocate(rab, theta)
 
 ```

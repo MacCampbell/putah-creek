@@ -142,3 +142,5 @@ ggplot(counts) +
 ```{r}
 counts %>% filter(Filtered > 1e5) %>% group_by(Method, Year) %>% summarize(Count=n())
 ```
+
+
