@@ -31,7 +31,7 @@ Generate GL file
 
 ```{sh, eval=FALSE}
 srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
--bam bamlists/243.bamlist -rf meta/chrom-list.txt \
+-bam bamlists/243-downsampled.tsv -rf meta/chrom-list.txt \
 -ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minInd 182 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
@@ -39,7 +39,7 @@ srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
 -out outputs/108/243-gl-75 > outputs/108/243-gl-75.out 2> outputs/108/243-gl-75.err &
 
 srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
--bam bamlists/243.bamlist -rf meta/chrom-list.txt \
+-bam bamlists/243-downsampled.tsv -rf meta/chrom-list.txt \
 -ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minInd 122 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
@@ -47,9 +47,9 @@ srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
 -out outputs/108/243-gl-50 > outputs/108/243-gl-50.out 2> outputs/108/243-gl-50.err &
 ```
 75% 552 sites
-50% 3443 sites    
+50% 3268 sites    
 
-```{sh}
+```{sh, eval=FALSE}
 conda activate py2
 
 srun -p high -t 01:00:00 --nodes=1 --mem=32G python $HOME/pcangsd/pcangsd.py -beagle outputs/108/243-gl-75.beagle.gz -kinship -o outputs/108/243-gl-75 -threads 10
@@ -113,14 +113,14 @@ hist
 ```
 ```{r}
 hist +
-  xlim(.0313,.5)
+  xlim(.05,.5)
 ```
 
 ## Boost sample sizes
 
 ```{r}
 m301<-meta %>% filter(Filtered>7.5e4)
-
+m301 %>% group_by(Method, Year) %>% summarize(Count=n())
 write_tsv(m301 %>% select(NewPath), file="bamlists/301-downsampled.tsv", col_names = FALSE)
 ```
 
@@ -129,7 +129,7 @@ Generate GL files
 
 ```{sh, eval=FALSE}
 srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
--bam bamlists/301.bamlist -rf meta/chrom-list.txt \
+-bam bamlists/301-downsampled.tsv -rf meta/chrom-list.txt \
 -ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minInd 226 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
@@ -137,11 +137,85 @@ srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
 -out outputs/108/301-gl-75 > outputs/108/301-gl-75.out 2> outputs/108/301-gl-75.err &
 
 srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
--bam bamlists/301.bamlist -rf meta/chrom-list.txt \
+-bam bamlists/301-downsampled.tsv -rf meta/chrom-list.txt \
 -ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minInd 151 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -minMaf 0.05 \
 -out outputs/108/301-gl-50 > outputs/108/301-gl-50.out 2> outputs/108/301-gl-50.err &
 ```
+347 and
+2067 sites
+```{sh,eval=FALSE}
+conda activate py2
 
+srun -p high -t 01:00:00 --nodes=1 --mem=32G python $HOME/pcangsd/pcangsd.py -beagle outputs/108/301-gl-75.beagle.gz -kinship -o outputs/108/301-gl-75 -threads 10
+srun -p high -t 01:00:00 --nodes=1 --mem=32G python $HOME/pcangsd/pcangsd.py -beagle outputs/108/301-gl-50.beagle.gz -kinship -o outputs/108/301-gl-50 -threads 10
+conda deactivate;
+```
+     
+
+
+```{r}
+pcm<-m301
+kin<-npyLoad("outputs/108/301-gl-75.kinship.npy")
+
+#Convert upper half of matrix to data frame compatible 
+kinrind<-which(upper.tri(kin, diag = TRUE), arr.ind = TRUE)
+kin<-cbind(kinrind, kin[kinrind])
+
+kindf<-as_tibble(kin) %>%
+  rename(Ind1=row, Ind2=col, Kinship=V3) %>%
+  filter(Ind1 != Ind2) %>%
+  mutate(Mean=mean(Kinship))
+
+
+#Can I replace Ind1 and Ind2 with individual labels???
+df<-kindf %>% left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind1"="Individual")) %>% dplyr::rename(Year1=Year, Method1=Method, SampleName1=SampleName) %>%
+  left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind2"="Individual")) %>% dplyr::rename(Year2=Year, Method2=Method,  SampleName2=SampleName)
+
+
+kinship<-df %>% select(Ind1, Ind2, Kinship, SampleName1, SampleName2, Method1, Year1, Method2, Year2)
+```
+
+
+```{r}
+#What are our "related" individuals
+kinship %>% filter(Kinship>0.0625)
+
+```
+
+
+Hmmmm.... Do we have the same results?
+
+
+61	71	0.06334656	PC_CHN_RST_2021_2287	PC_CHN_RST_2021_2574	RST	2021	RST	2021 (No)        
+48	158	0.06948823	PC_CHN_RST_2021_1843	PC_CHN_RST_2018_326	RST	2021	RST	2018 (Yes)        
+149	178	0.07191533	PC_CHN_CS_2018_167	PC_CHN_RST_2018_828	CS	2018	RST	2018 (No)        
+
+
+## Smaller dataset
+
+```{r}
+m109<- meta %>% filter(Filtered > 2e5)
+write_tsv(m109 %>% select(NewPath), file="bamlists/109-downsampled.tsv", col_names = FALSE)
+```
+
+
+```{sh, eval=FALSE}
+run -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/109-downsampled.tsv -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 82 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/108/199-gl-75 > outputs/108/199-gl-75.out 2> outputs/108/199-gl-75.err &
+
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+-bam bamlists/109-downsampled.tsv -rf meta/chrom-list.txt \
+-ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minInd 55 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
+-doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-minMaf 0.05 \
+-out outputs/108/109-gl-50 > outputs/108/109-gl-50.out 2> outputs/108/109-gl-50.err &
+```
