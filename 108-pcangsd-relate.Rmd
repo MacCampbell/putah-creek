@@ -203,7 +203,7 @@ write_tsv(m109 %>% select(NewPath), file="bamlists/109-downsampled.tsv", col_nam
 
 
 ```{sh, eval=FALSE}
-run -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
+srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
 -bam bamlists/109-downsampled.tsv -rf meta/chrom-list.txt \
 -ref ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minInd 82 -minMapQ 10 -minQ 20 -GL 2 -doGLF 2 \
@@ -218,4 +218,47 @@ srun -p high -t 3:00:00 --mem=32G --nodes=1 $HOME/angsd/angsd -P 16  \
 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -minMaf 0.05 \
 -out outputs/108/109-gl-50 > outputs/108/109-gl-50.out 2> outputs/108/109-gl-50.err &
+```
+
+	-> Number of sites retained after filtering: 1422 
+		-> Number of sites retained after filtering: 22222 
+
+
+```{sh,eval=FALSE}
+conda activate py2
+
+srun -p high -t 01:00:00 --nodes=1 --mem=32G python $HOME/pcangsd/pcangsd.py -beagle outputs/108/199-gl-75.beagle.gz -kinship -o outputs/108/109-gl-75 -threads 10
+srun -p high -t 01:00:00 --nodes=1 --mem=32G python $HOME/pcangsd/pcangsd.py -beagle outputs/108/109-gl-50.beagle.gz -kinship -o outputs/108/109-gl-50 -threads 10
+conda deactivate;
+```
+     
+
+
+```{r}
+pcm<-m109
+kin<-npyLoad("outputs/108/109-gl-75.kinship.npy")
+
+#Convert upper half of matrix to data frame compatible 
+kinrind<-which(upper.tri(kin, diag = TRUE), arr.ind = TRUE)
+kin<-cbind(kinrind, kin[kinrind])
+
+kindf<-as_tibble(kin) %>%
+  rename(Ind1=row, Ind2=col, Kinship=V3) %>%
+  filter(Ind1 != Ind2) %>%
+  mutate(Mean=mean(Kinship))
+
+
+#Can I replace Ind1 and Ind2 with individual labels???
+df<-kindf %>% left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind1"="Individual")) %>% dplyr::rename(Year1=Year, Method1=Method, SampleName1=SampleName) %>%
+  left_join(pcm %>% mutate(Individual=1:n()), by=c("Ind2"="Individual")) %>% dplyr::rename(Year2=Year, Method2=Method,  SampleName2=SampleName)
+
+
+kinship<-df %>% select(Ind1, Ind2, Kinship, SampleName1, SampleName2, Method1, Year1, Method2, Year2)
+```
+
+
+```{r}
+#What are our "related" individuals
+kinship %>% filter(Kinship>0.0625)
+
 ```
