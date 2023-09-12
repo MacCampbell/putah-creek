@@ -97,6 +97,30 @@ java -jar ~/bin/beagle.27Jan18.7e1.jar gt=outputs/102/243.renamed.vcf  out=outpu
 86 after filter
 54 after pruning
 
+Let's get MAFs from these
+
+```{sh, eval=FALS}
+bcftools +fill-tags outputs/102/243.renamed.pruned.vcf -Ov -- -t NS,MAF | grep -v "#" | cut -f 8 > outputs/102/mafs.txt
+```
+
+
+```{r}
+metrics<-read_delim(file="outputs/102/mafs.txt", col_names=c("Chrom","Position","Info")) %>% separate(Info, into=c("NumSamples","MAF"), sep=";")
+metrics$NumSamples<-gsub("NS=","",metrics$NumSamples)
+metrics$MAF<-gsub("MAF=","",metrics$MAF)
+metrics$MAF<-as.numeric(metrics$MAF)
+metrics$NumSamples<-as.numeric(metrics$NumSamples)
+metrics<-metrics %>% mutate(ProportionMissing=1-NumSamples/243)
+
+write_csv(metrics, file="outputs/102/243-called-snps.csv")
+
+ggplot(metrics) +
+  geom_freqpoly(aes(x=MAF)) +
+  theme_bw() +
+  ylab("Count")
+```
+```
+
 ```{r}
 vcf<-read.vcfR(file="outputs/102/243.renamed.pruned.vcf")
 genind<-vcfR2genind(vcf)
@@ -174,3 +198,4 @@ gen@pop<-factor(paste0(df1$Method,"-",df1$Year))
 poppr(gen)
 ```
 
+## What's the MAF of our calls? 
