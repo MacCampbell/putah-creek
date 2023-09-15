@@ -74,6 +74,7 @@ plink --ped outputs/102/243-snps-75-binary.ped --map outputs/102/243-snps-75-bin
 bcftools reheader --samples bamlists/243-sample-names.txt -o outputs/102/243.renamed.vcf  outputs/102/243-snps-samples-recode.vcf  
 vcftools --vcf outputs/102/243.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.1 --max-maf 0.4 --out outputs/102/243-filtered --recode 
 
+vcftools --vcf outputs/102/243.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.05 --max-maf 0.4 --out outputs/102/243-filtered-05 --recode 
 #86 sites
 
 bcftools +prune -l 0.2 -w 10000 outputs/102/243-filtered.recode.vcf -Ov -o outputs/102/243.renamed.pruned.vcf 
@@ -118,7 +119,6 @@ ggplot(metrics) +
   geom_freqpoly(aes(x=MAF)) +
   theme_bw() +
   ylab("Count")
-```
 ```
 
 ```{r}
