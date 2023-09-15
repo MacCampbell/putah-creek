@@ -85,10 +85,17 @@ That is
 ```{sh, eval=FALSE}
 
 srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
--minInd 93 -bam bamlists/124.bamlist  -rf meta/chrom-list.txt \
+-minInd 93 -bam bamlists/124.bamlist  -rf meta/chrom-list.txt -sites outputs/109/site-list-05.txt \
 -ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/109/124-snps-05 > outputs/109/124-snps05.out 2> outputs/109/124-snps-05.err &
+
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 93 -bam bamlists/124.bamlist  -rf meta/chrom-list.txt -sites outputs/109/site-list-10.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/109/124-snps-10 > outputs/109/124-snps10.out 2> outputs/109/124-snps-10.err &
+```
 
 ```
 
