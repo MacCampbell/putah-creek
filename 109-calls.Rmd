@@ -35,10 +35,11 @@ _2_ 2017 carcass to 2018 RST
 m1<-meta %>% filter(Method=="CS") %>% filter(Year==2017) %>% filter(Filtered > 1e5)
 m2<-meta %>% filter(Method=="RST") %>% filter(Year==2018) %>% filter(Filtered > 1e5)
 
-m3<-bind_rows(m1,m2)
+m3<-bind_rows(m1,m2) 
+m3 %>% group_by(Method, Year) %>% summarize(Count=n())
 m124<-write_csv(m3, file="meta/m124.csv")
-write_tsv(m124 %>% select(NewPath), file="bamlists/124.bamlist")
-write_tsv(m124 %>% select(SampleName), file="bamlists/124.names")
+write_tsv(m124 %>% select(NewPath), file="bamlists/124.bamlist", col_names = FALSE)
+write_tsv(m124 %>% select(SampleName), file="bamlists/124.names", col_names = FALSE)
 ```
 
 
@@ -47,6 +48,26 @@ srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -minInd 93 -bam bamlists/124.bamlist  -rf meta/chrom-list.txt \
 -ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
--doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/109/124-snps > outputs/109/124-snps.out 2> outputs/109/123-snps.err &
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/109/124-snps > outputs/109/124-snps.out 2> outputs/109/124-snps.err &
 ```
+
+186 SNPS
+
+Convert to vcf and filter
+
+```{sh, eval=FALSE}
+plink --tped outputs/109/124-snps.tped --tfam outputs/109/124-snps.tfam --out outputs/109/124-snps-binary --recode --allow-extra-chr --noweb
+plink --ped outputs/109/124-snps-binary.ped --map outputs/109/124-snps-binary.map --recode vcf --allow-extra-chr -out outputs/109/124-snps-samples-recode
+
+bcftools reheader --samples bamlists/124.names -o outputs/109/124.renamed.vcf  outputs/109/124-snps-samples-recode.vcf  
+vcftools --vcf outputs/109/124.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.05 --max-maf 0.4 --out outputs/109/124-renamed-filtered-05 --recode 
+
+vcftools --vcf outputs/109/124.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.10 --max-maf 0.4 --out outputs/109/124-renamed-filtered-10 --recode 
+
+```
+
+186 sites without MAF filter
+128 sites @ minMaf 0.05
+74 sites @ minMaf 0.10
+
 
