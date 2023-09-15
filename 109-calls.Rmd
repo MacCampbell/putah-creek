@@ -71,3 +71,24 @@ vcftools --vcf outputs/109/124.renamed.vcf  --min-alleles 2 --max-alleles 2 --ma
 74 sites @ minMaf 0.10
 
 
+
+## Convert vcf files to geno
+
+Ok, so I have geno files, but the minMaf 0.05 with angsd includes sites that are invariant. Also it is numeric.
+
+Use a site list to ensure calls are what we want.
+
+That is
+`(base) Macs-MacBook-Pro-2:data-files mac$ cat 124-renamed-filtered-05.recode.vcf  | grep -v "#" | cut -f 1,2 > site-list-05.txt
+(base) Macs-MacBook-Pro-2:data-files mac$ cat 124-renamed-filtered-10.recode.vcf  | grep -v "#" | cut -f 1,2 > site-list-10.txt`
+
+```{sh, eval=FALSE}
+
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 93 -bam bamlists/124.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 4 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/109/124-snps-05 > outputs/109/124-snps05.out 2> outputs/109/124-snps-05.err &
+
+```
+
