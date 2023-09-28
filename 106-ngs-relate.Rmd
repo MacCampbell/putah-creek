@@ -269,3 +269,19 @@ comb %>% filter(SampleA == "PC_CHN_RST_2021_2462") %>% arrange(-theta) %>% reloc
 comb %>% filter(SampleB == "PC_CHN_RST_2021_2462") %>% arrange(-theta) %>% relocate(rab, theta)
 
 ```
+
+
+## Compare to Colony
+PC_CHN_RST_2018_326	PC_CHN_CS_2017_140C	0.9972
+PC_CHN_RST_2018_576	PC_CHN_CS_2017_140C	0.9972
+PC_CHN_RST_2018_981	PC_CHN_CS_2017_140C	0.9972
+PC_CHN_RST_2018_1445	PC_CHN_CS_2017_127D	0.9997
+PC_CHN_RST_2018_1880	PC_CHN_CS_2017_127D	0.9997
+
+```{r}
+comb %>% filter(SampleA == "PC_CHN_CS_2017_140C") %>% filter(SampleB %in% c("PC_CHN_RST_2018_326","PC_CHN_RST_2018_576","PC_CHN_RST_2018_981")) %>% relocate(rab, theta) %>% arrange(-theta)
+```
+
+```{r}
+comb %>% filter(SampleB == "PC_CHN_CS_2017_140C") %>% filter(SampleA %in% c("PC_CHN_RST_2018_326","PC_CHN_RST_2018_576","PC_CHN_RST_2018_981")) %>% relocate(rab, theta) %>% arrange(-theta)
+```
