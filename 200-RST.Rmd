@@ -39,7 +39,10 @@ rst %>% filter(Filtered > 2e5) %>% group_by(Year) %>% summarise(Count=n(), Mean=
 99 samples     
 
 ```{r}
-write_tsv(rst %>% ungroup() %>% select(NewPath), file="bamlists/99.bamlist", col_names = FALSE)
+rst99<-rst %>% filter(Filtered > 2e5) 
+write_tsv(rst99 %>% ungroup() %>% select(NewPath), file="bamlists/99.bamlist", col_names = FALSE)
+write_tsv(rst99 %>% ungroup() %>% select(SampleName), file="bamlists/99.names", col_names = FALSE)
+
 ```
 
 Call SNPS
@@ -50,4 +53,22 @@ srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/200/99-snps-90 > outputs/200/99-snps.out 2> outputs/200/99-snps.err &
+```
+
+
+Convert to vcf and filter, calculate MSFs
+
+```{sh, eval=FALSE}
+plink --tped outputs/200/99-snps-90.tped --tfam outputs/200/99-snps-90.tfam --out outputs/200/99-snps-binary --recode --allow-extra-chr --noweb
+plink --ped outputs/200/99-snps-binary.ped --map outputs/200/99-snps-binary.map --recode vcf --allow-extra-chr -out outputs/200/99-snps-samples-recode
+
+bcftools reheader --samples bamlists/99.names -o outputs/200/99.renamed.vcf  outputs/200/99-snps-samples-recode.vcf  
+vcftools --vcf outputs/200/99.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.05 --max-maf 0.4 --out outputs/200/99-renamed-filtered-05 --recode 
+
+vcftools --vcf outputs/200/99.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.10 --max-maf 0.4 --out outputs/200/99-renamed-filtered-10 --recode 
+
+
+#fill tags
+bcftools +fill-tags snps-90-all-seqs.vcf -- -t MAF  > snps-90-all-seqs-maf.vcf
+
 ```
