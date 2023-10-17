@@ -53,22 +53,73 @@ srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=
 -ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
 -minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/200/99-snps-90 > outputs/200/99-snps.out 2> outputs/200/99-snps.err &
+
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 75 -bam bamlists/99.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/200/99-snps-75 > outputs/200/99-snps-75.out 2> outputs/200/99-snps-75.err &
 ```
 
 
 Convert to vcf and filter, calculate MSFs
+	-> Number of sites retained after filtering: 166 
+
+	-> Number of sites retained after filtering: 482 
+
 
 ```{sh, eval=FALSE}
 plink --tped outputs/200/99-snps-90.tped --tfam outputs/200/99-snps-90.tfam --out outputs/200/99-snps-binary --recode --allow-extra-chr --noweb
 plink --ped outputs/200/99-snps-binary.ped --map outputs/200/99-snps-binary.map --recode vcf --allow-extra-chr -out outputs/200/99-snps-samples-recode
 
-bcftools reheader --samples bamlists/99.names -o outputs/200/99.renamed.vcf  outputs/200/99-snps-samples-recode.vcf  
+bcftools reheader --samples bamlists/99.names -o outputs/200/99.renamed.vcf  outputs/200/99-snps-samples-recode.vcf 
+
+module load vcftools/0.1.14 
 vcftools --vcf outputs/200/99.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.05 --max-maf 0.4 --out outputs/200/99-renamed-filtered-05 --recode 
 
 vcftools --vcf outputs/200/99.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.10 --max-maf 0.4 --out outputs/200/99-renamed-filtered-10 --recode 
 
 
 #fill tags
-bcftools +fill-tags snps-90-all-seqs.vcf -- -t MAF  > snps-90-all-seqs-maf.vcf
+module load bcftools/1.13
+bcftools +fill-tags outputs/200/99-renamed-filtered-05.recode.vcf -- -t MAF  > outputs/200/99-maf.vcf
 
 ```
+
+After filtering, kept 113 out of a possible 166 Sites
+60 @ 0.10-0.4
+
+```{sh, eval=FALSE}
+plink --tped outputs/200/99-snps-75.tped --tfam outputs/200/99-snps-75.tfam --out outputs/200/99-snps-binary --recode --allow-extra-chr --noweb
+plink --ped outputs/200/99-snps-binary.ped --map outputs/200/99-snps-binary.map --recode vcf --allow-extra-chr -out outputs/200/99-snps-samples-recode
+
+bcftools reheader --samples bamlists/99.names -o outputs/200/99.renamed.vcf  outputs/200/99-snps-samples-recode.vcf 
+#bcftools +prune -m 0.3 -n 1 -w 5000 outputs/200/99-snps-samples-recode.vcf 
+#bcftools +prune -m 0.3 -n 1 -w 5000 outputs/200/99-snps-samples-recode.vcf  | grep -v "#" | wc  (gives 33 )
+
+module load vcftools/0.1.14 
+vcftools --vcf outputs/200/99.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.05 --max-maf 0.45 --out outputs/200/99-renamed-filtered-05 --recode 
+
+vcftools --vcf outputs/200/99.renamed.vcf  --min-alleles 2 --max-alleles 2 --max-missing 0.4 --maf 0.10 --max-maf 0.45 --out outputs/200/99-renamed-filtered-10 --recode 
+
+
+#fill tags
+module load bcftools/1.13
+bcftools +fill-tags outputs/200/99-renamed-filtered-05.recode.vcf -- -t MAF  > outputs/200/99-maf.vcf
+bcftools +prune -m 0.3 -w 5000 outputs/200/99-maf.vcf  > outputs/200/99-maf-pruned.vcf
+bcftools +prune -m 0.3 -w 5000 -n 1 outputs/200/99-maf.vcf  > outputs/200/99-maf-pruned-n.vcf
+
+```
+
+337 sites kept at maf 0.05 and 167 at 0.1
+218 sites after pruning,
+
+```{r}
+cat outputs/200/99-maf-pruned.vcf | grep -v "#" | cut -f 8 | perl -pe 's/MAF=//g' | sort -n
+cat outputs/200/99-maf-pruned.vcf | grep -v "#" | cut -f 1,8
+```
+
+
+
+
+b
