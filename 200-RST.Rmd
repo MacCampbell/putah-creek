@@ -1,0 +1,53 @@
+---
+title: "200-RST"
+output: html_document
+date: "2023-10-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+Load meta.     
+```{r}
+meta<-read_csv("meta/meta-with-downsampled-path.csv")
+```
+
+Get RST samples    
+```{r}
+rst<-meta %>% filter(Method=="RST")
+
+rst %>% summarise(Count=n(), Mean=mean(Filtered), Median=median(Filtered)) 
+```
+
+```{r}
+ggplot(rst) +
+  geom_histogram(aes(x=Filtered)) +
+  xlim(0, max(cs$Filtered)+1e5) +
+  theme_bw() 
+```
+
+
+```{r}
+rst %>% filter(Filtered > 2e5) %>% group_by(Year) %>% summarise(Count=n(), Mean=mean(Filtered), Median=median(Filtered)) 
+```
+
+99 samples     
+
+```{r}
+write_tsv(rst %>% ungroup() %>% select(NewPath), file="bamlists/99.bamlist", col_names = FALSE)
+```
+
+Call SNPS
+
+```{sh, eval=FALSE}
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 89 -bam bamlists/99.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/200/99-snps-90 > outputs/200/99-snps.out 2> outputs/200/99-snps.err &
+```
