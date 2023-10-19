@@ -114,12 +114,31 @@ bcftools +prune -m 0.3 -w 5000 -n 1 outputs/200/99-maf.vcf  > outputs/200/99-maf
 337 sites kept at maf 0.05 and 167 at 0.1
 218 sites after pruning,
 
-```{r}
+```{sh, eval=FALSE}
 cat outputs/200/99-maf-pruned.vcf | grep -v "#" | cut -f 8 | perl -pe 's/MAF=//g' | sort -n
 cat outputs/200/99-maf-pruned.vcf | grep -v "#" | cut -f 1,8
 ```
 
 
+## Upping min counts
+
+```{r}
+rst %>% filter(Filtered > 3e5) %>% group_by(Year) %>% summarise(Count=n(), Mean=mean(Filtered), Median=median(Filtered)) 
+```
 
 
-b
+
+```{r}
+rst42<-rst %>% filter(Filtered > 3e5) 
+write_tsv(rst42 %>% ungroup() %>% select(NewPath), file="bamlists/42.bamlist", col_names = FALSE)
+write_tsv(rst42 %>% ungroup() %>% select(SampleName), file="bamlists/42.names", col_names = FALSE)
+```
+
+
+```{sh, eval=FALSE}
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 32 -bam bamlists/42.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/200/42-snps-75 > outputs/200/42-snps.out 2> outputs/200/42-snps.err &
+```
