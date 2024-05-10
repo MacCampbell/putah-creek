@@ -117,6 +117,11 @@ median(counts$Filtered)
 ```
 
 ```{r}
+counts %>% group_by(Method) %>% summarize(Mean=mean(Reads), Median=median(Reads), MeanF=mean(Filtered),
+                                          MedianF=median(Filtered))
+```
+
+```{r}
 ggplot(counts) +
   geom_histogram(aes(x=Reads, fill=Method), color="black") +
   scale_fill_viridis_d(option="plasma") +

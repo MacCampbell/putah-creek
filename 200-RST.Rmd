@@ -27,7 +27,7 @@ rst %>% summarise(Count=n(), Mean=mean(Filtered), Median=median(Filtered))
 ```{r}
 ggplot(rst) +
   geom_histogram(aes(x=Filtered)) +
-  xlim(0, max(cs$Filtered)+1e5) +
+  xlim(0, max(rst$Filtered)+1e5) +
   theme_bw() 
 ```
 
