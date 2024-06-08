@@ -155,8 +155,74 @@ bcftools reheader --samples bamlists/42.names -o outputs/200/42.renamed.vcf  out
 
 module load bcftools/1.13
 bcftools +fill-tags outputs/200/42.renamed.vcf -- -t MAF > outputs/200/42.renamed.maf.vcf
-bcftools +prune -m 0.3 -w 10000bp -n 1 -N "maxAF" outputs/200/42.renamed.maf.vcf  > outputs/200/42-maf-pruned-n.vcf
+
+#there is a problem with invariant sites making it through, so should remove the things like so 
+bcftools view  outputs/200/42.renamed.maf.vcf | bcftools +fill-tags | bcftools view -q 0.1:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.25' | bcftools +prune -m 0.3 -w 10000bp -n 1 -N "maxAF"  > outputs/200/42-maf-pruned-n.vcf
 
 
 ```
+
+cat outputs/200/42-maf-pruned-n.vcf | grep -v "#" | cut -f 8 | perl -pe 's/MAF=//g' | sort -n
+
+
+## Min counts in the middle
+
+```{r}
+rst %>% filter(Filtered > 2.5e5) %>% group_by(Year) %>% summarise(Count=n(), Mean=mean(Filtered), Median=median(Filtered)) 
+```
+
+67 inds
+
+
+```{r}
+rst67<-rst %>% filter(Filtered > 2.5e5) 
+write_tsv(rst67 %>% ungroup() %>% select(NewPath), file="bamlists/67.bamlist", col_names = FALSE)
+write_tsv(rst67 %>% ungroup() %>% select(SampleName), file="bamlists/67.names", col_names = FALSE)
+```
+
+
+```{sh, eval=FALSE}
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 50 -bam bamlists/67.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook-2/GCF_018296145.1_Otsh_v2.0_genomic.fna \
+-minMaf 0.05 -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.9 -doPlink 2 -out outputs/200/67-snps-75 > outputs/200/67-snps.out 2> outputs/200/67-snps.err &
+```
+
+
+```{sh, eval=FALSE}
+plink --tped outputs/200/67-snps-75.tped --tfam outputs/200/67-snps-75.tfam --out outputs/200/67-snps-binary --recode --allow-extra-chr --noweb
+
+plink --ped outputs/200/67-snps-binary.ped --map outputs/200/67-snps-binary.map --recode vcf --allow-extra-chr -out outputs/200/67-snps-samples-recode
+
+bcftools reheader --samples bamlists/67.names -o outputs/200/67.renamed.vcf  outputs/200/67-snps-samples-recode.vcf 
+
+module load bcftools/1.13
+bcftools +fill-tags outputs/200/67.renamed.vcf -- -t MAF > outputs/200/67.renamed.maf.vcf
+
+#there is a problem with invariant sites making it through, so should remove the things like so 
+bcftools view  outputs/200/67.renamed.maf.vcf | bcftools +fill-tags | bcftools view -q 0.1:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.3' | bcftools +prune -m 0.3 -w 10000bp -n 1 -N "maxAF"  > outputs/200/67-maf-pruned-n.vcf
+
+
+```
+
+745 variants and 67 people pass filters and QC.
+cat outputs/200/67-maf-pruned-n.vcf | grep -v "#" | cut -f 8 | perl -pe 's/MAF=//g' | sort -n
+
+60 SNPs
+
+Make a histo of MAFs
+cat outputs/200/67-maf-pruned-n.vcf | grep -v "#" | cut -f 8 | cut -f 2 -d ';' | perl -pe 's/MAF=//g' > outputs/200/67-mafs.txt
+
+```{r}
+mafs<-read_tsv("outputs/200/67-mafs.txt", col_names = "MAF")
+mafs %>% ggplot() + geom_histogram(aes(x=MAF)) +
+  ylab("Count\n") +
+  xlab("\nMAF") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+ggsave("outputs/200/67-mafs-histo.jpeg")
+```
+
 

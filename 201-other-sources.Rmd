@@ -1,0 +1,42 @@
+---
+title: "201-other-sources"
+output: html_document
+date: "2024-05-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+30/18 fish
+Mokelumne River Fish Hatchery 2004–2005, 2008 F_MKH 30/18 0.244 0.258 1.854 –0.058 (–0.068 to –0.049)
+
+Have the oleary data.  
+
+```{r}
+samples<-read_tsv("outputs/Re_ MOK vcf files_/Sample_Info.txt") 
+samples %>% group_by(LOCATION) %>% summarize(Count=n())
+mok<-dplyr::filter(samples,LOCATION=="MKH")
+```
+
+
+30 samples in MKH, naming like LIB_ID
+
+```{r}
+mok %>% select(LIB_ID) %>% write_tsv("meta/mkh.samples", col_names = FALSE)
+```
+
+e.g.  bcftools view -s ONC_BMAG001_F050084MKH data/oleary/ONC.haps.filtered.recode.vcf.gz
+
+```{sh, eval=FALSE}
+bcftools view -S meta/mkh.samples | bcftools +fill-tags | bcftools view -q 0.1:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.3' > outputs/201/mkh.vcf
+
+```
+
+
+ 
