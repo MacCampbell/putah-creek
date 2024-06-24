@@ -163,7 +163,19 @@ bcftools view  outputs/200/42.renamed.maf.vcf | bcftools +fill-tags | bcftools v
 ```
 
 cat outputs/200/42-maf-pruned-n.vcf | grep -v "#" | cut -f 8 | perl -pe 's/MAF=//g' | sort -n
+cat outputs/200/42-maf-pruned-n.vcf | grep -v "#" | cut -f 8 | cut -f 2 -d ';' | perl -pe 's/MAF=//g' > outputs/200/42-mafs.txt
 
+
+```{r}
+mafs<-read_tsv("outputs/200/42-mafs.txt", col_names = "MAF")
+mafs %>% ggplot() + geom_histogram(aes(x=MAF)) +
+  ylab("Count\n") +
+  xlab("\nMAF") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+ggsave("outputs/200/42-mafs-histo.jpeg")
+```
 
 ## Min counts in the middle
 
@@ -226,3 +238,4 @@ ggsave("outputs/200/67-mafs-histo.jpeg")
 ```
 
 
+Is there any agreement between sets of SNPs

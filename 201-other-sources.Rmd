@@ -34,9 +34,158 @@ mok %>% select(LIB_ID) %>% write_tsv("meta/mkh.samples", col_names = FALSE)
 e.g.  bcftools view -s ONC_BMAG001_F050084MKH data/oleary/ONC.haps.filtered.recode.vcf.gz
 
 ```{sh, eval=FALSE}
-bcftools view -S meta/mkh.samples | bcftools +fill-tags | bcftools view -q 0.1:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.3' > outputs/201/mkh.vcf
+module load bcftools 
+
+bcftools view -S meta/mkh.samples data/oleary/ONC.haps.filtered.recode.vcf.gz | bcftools +fill-tags | bcftools view -q 0.1:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.25' > outputs/201/mkh.vcf
+
+bcftools query -f '%CHROM %POS %AF\n' outputs/201/mkh.vcf
+```
+
+8080 variants of 31897
+ 
+```{sh, eval=FALSE}
+bcftools view -S meta/mkh.samples data/oleary/ONC.haps.filtered.recode.vcf.gz | bcftools +fill-tags | bcftools view -q 0.2:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.25' > outputs/201/mkh-2-45.vcf
+
+bcftools query -f '%CHROM %POS %AF\n' outputs/201/mkh-2-45.vcf
+
+bcftools view -S meta/mkh.samples data/oleary/ONC.haps.filtered.recode.vcf.gz | bcftools +fill-tags | bcftools view -q 0.2:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.25' | bcftools +prune -m 0.3 -w 10000bp -n 1 -N "maxAF" > outputs/201/mkh-2-45-max.vcf
+
+bcftools query -f '%CHROM %POS %AF\n' outputs/201/mkh-2-45-max.vcf
 
 ```
 
+4407 variants, probably 3727 unlinked sites.
 
- 
+Some of these are on the same contig, so we'll want to avoid overlapping sites with any assay design bits and then not select these 
+
+Maybe can go back to all calls, get contigs with single snps, then filter to MOK inds and try again. That should substantially reduce the number of snps.
+
+Then we would need to 'liftover'   
+
+_1_ Identify contigs with only one snp. 
+```{sh, eval=FALSE}
+gunzip -c ONC.haps.filtered.recode.vcf.gz | grep -v "#" | cut -f 1 | sort | uniq -c  | awk '$1=="1" {print $2}' > single-snp-contigs.txt
+```
+
+_2_ sample snps
+```{sh, eval=FALSE}
+tabix -h -R data/oleary/single-snp-contigs.txt data/oleary/ONC.haps.filtered.recode.vcf.gz > outputs/201/subset.vcf
+bgzip outputs/201/subset.vcf
+tabix outputs/201/subset.vcf.gz
+
+module load bcftools
+bcftools view -S meta/mkh.samples outputs/201/subset.vcf.gz | bcftools +fill-tags | bcftools view -q 0.2:minor | bcftools view -i 'MAF<0.45' | bcftools view -i 'F_MISSING<0.25'  > outputs/201/mok-2-45.vcf
+
+```
+
+1338 snps
+
+Now let's get reasonable flanking data (150 bp?).
+
+How about 50bp?
+Chrom  Site    Major   Minor MAF tab delimited
+```{sh, eval=FALSE}
+ bcftools query -f '%CHROM %POS %REF %ALT %MAF\n'  outputs/201/mok-2-45.vcf | perl -pe 's/ /\t/g'  > outputs/201/mok-2-45.sites
+
+#in outputs 201
+./201.1-extract-flanking.pl mok-2-45.sites > mok-2-45.fasta
+
+```
+
+works!
+
+_3_ unify coordinate system. 
+(https://www.ncbi.nlm.nih.gov/assembly/GCF_002872995.1/)
+
+I appear to have that in /home/maccamp/genomes/chinook
+/home/maccamp/genomes/chinook/GCF_002872995.1_Otsh_v1.0_genomic.fna
+
+
+Our bed file is
+NC_037097.1	6161	6345	Contig_1
+our sites file is 
+Contig_100151	135	A	G	0.4
+
+If we merge the bet with sites file...
+
+```{r}
+bed<-read_tsv("outputs/201/map_intervals.bed", col_names = c("Chrom","Start","Stop","Contig"))
+sites<-read_tsv("outputs/201/mok-2-45.sites", col_names = c("Contig","Site","Major","Minor","MAF"))
+
+#more than one snp/contig perhaps
+comb<-left_join(sites,bed) 
+
+comb %>% mutate(Position=Start+Site)
+
+# check
+ comb %>% filter(Stop<Start)
+```
+
+Is this zero referenced? or 1 referenced?
+
+e.g. where is site Contig_100151
+
+Contig_100151	135	A	G	0.4
+
+```{r}
+newsites<-comb %>% mutate(Position=Start+Site) %>% select(Chrom, Position, Major, Minor, MAF) %>% arrange(Chrom, Position)
+newsites
+newsites %>% write_tsv("outputs/201/mok-genome.sites")
+```
+
+
+Check distributions
+```{r}
+sum<-newsites %>% group_by(Chrom) %>% summarize(Count=n())
+sum
+```
+
+Our distribution isn't very smooth. 
+
+```{r}
+ggplot(newsites) +
+  geom_histogram(aes(x=MAF), bins = 25)
+```
+
+
+Examine one in detail for concrodance
+
+Contig_100151	135	A	G	0.400000	NC_037116.1	32382635	32382819 32382770
+
+grep Contig_100151 -A 1 mok-2-45.fasta 
+>Contig_100151-site-135-Major-A-Minor-G-MAF-0.4
+AGGACCTGCAGGCTTTCTCTAAGGATTTCAGGGCTTTATGTACCTGCACC[A/G]AGAATGGCAAAAAGCTGAAAGTTTGACCAGCTCTCATTGGTTCATCCAC
+
+(base) maccamp@farm:~/putah-creek/outputs/201$ grep 32382770 -A 1 mok-genome.fasta 
+>NC_037116.1-site-32382770-Major-A-Minor-G-MAF-0.4
+TTGGAATTTCATTACATTCCAGGGTTAGATTGAACAGATATGTAAGTGGTTCAGCTATGACATCAGCTGCCAGTTTTAAAAAGCAGGGATCAAGAAGATCAGGACCTGCAGGCTTTCTCTAAGGATTTCAGGGCTTTATGTACCTGCACC[A/G]AGAATGGCAAAAAGCTGAAAGTTTGACCAGCTCTCATTGGTTCATCCACACAGGGATGTAGAGAGAAAGAGGACACTGAATCAAACAGCCTACCAGATGATACAACATGCTCATTGAAACAATTCAGCATTTCAGTTTTGTCATATACAG
+
+
+Contig_10038	15	A	T	0.314815	NC_037098.1	24263919	24264103	24263934
+(base) maccamp@farm:~/putah-creek/outputs/201$ grep Contig_10038 -A 1 mok-2-45.fasta 
+>Contig_10038-site-15-Major-A-Minor-T-MAF-0.314815
+TTCAGACATCAAGTACCCCCTGGAATACTAGGTTCAATAGCAGTATAATT[A/T]GCCCTATAATTAAC
+
+Yeah.. this doesn't work because of the flanking data calc. So we would expect the site to be around here:
+TTCAGACATCAAGTA
+and it is
+TTCAGACATCAAGT[A/T]
+
+grep 24263934 -A 1 mok-genome.fasta
+CCTGCGTCATAGGTACCTTACTACTTTGCTAGGCTTCTGCACTGCCTTCCGCATCCTCTCTACACTCAACATACATTCATTATAGTTGTTTACAATATCAAACCTTTGCTAGACTAGTTTCAGACATTCAAACCGTTTCAGACATCAAGT[A/T]CCCCCTGGAATACTAGGTTCAATAGCAGTATAATTGGCCCTATAATTAACCATCACTCTCTCCATCCCTCCGTCCTGCAGGTAAATGTGTGGTGTCGTCCTTTAAGGACTACCTGTCGTGTCGGCCCACTGAGGTGTCTGAGGAGGACGT
+
+A third one 
+Contig_100527	157	C	T	0.310345	NC_037116.1	35931628	35931812	35931785
+(base) maccamp@farm:~/putah-creek/outputs/201$ grep Contig_100527 -A 1 mok-2-45.fasta 
+>Contig_100527-site-157-Major-C-Minor-T-MAF-0.310345
+ACCCCTGAGGCAGGCGCTGACTCCGCCTCCACTGTCCCTCTCCAGACCGC[C/T]GTGCCTGTGCAGCCCGCAGGCTCCGCC
+
+(base) maccamp@farm:~/putah-creek/outputs/201$ grep 35931785 -A 1 mok-genome.fasta 
+>NC_037116.1-site-35931785-Major-C-Minor-T-MAF-0.310345
+GTTCTCTATAGTCCGTCTATCAATGTGCTCCCCTCCATCGATGGCTCTGGTGGTACCCAGTTGACCAATGTGTCCTCTCTCTCCTGCAGGCGCCATGCAGACCCCTGAGGCAGGCGCTGACTCCGCCTCCACTGTCCCTCTCCAGACCGC[C/T]GTGCCTGTGCAGCCCGCAGGCTCCGCCCAGCAGGTGACCTCTCAGGGGCCTGTCCAGCAGCAGGTAAACGGCTGTGTGTGTGTTTGTGTGTGTGTGTTTCATTTGCGTGTGTTTCATTTGCATGTGTTTGATATGTGTGTCGTTTCTAAC
+
+TCCGCCTCCACTGTCCCTCTCCAGACCGC[C/T]GTGCCTGTGCAGCCCGCAGGCTCCGCC
+TCCGCCTCCACTGTCCCTCTCCAGACCGC[C/T]GTGCCTGTGCAGCCC   
+
+Looks good!!
+
