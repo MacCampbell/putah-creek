@@ -224,16 +224,17 @@ Let's call some snps...
 
 Need region file
 
-```{r}
-regionfile<-newsites %>% mutate(Position=paste0(Chrom,":",Position))
-regionfile %>% select(Position) %>% write_tsv("meta/1338-sites.txt", col_names = FALSE)
+```{r, eval=FALSE}
+regionfile<-newsites 
+regionfile %>% select(Chrom,Position) %>% write_tsv("meta/1338-sites.txt", col_names = FALSE)
+regionfile %>% select(Chrom) %>% write_tsv("meta/1338-chroms.txt", col_names = FALSE)
 ```
 
 
-
+need to use angsd sites index 1338-sites.txt on cluster (in outputs/201)
 ```{sh, eval=FALSE}
 srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
--minInd 21 -bam bamlists/42.bamlist  -rf meta/1338-sites.txt \
+-minInd 21 -bam bamlists/42.bamlist -rf meta/1338-chroms.txt -sites outputs/201/1338-sites.txt \
 -ref  ~/genomes/chinook/GCF_002872995.1_Otsh_v1.0_genomic.fna \
  -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 2 -doPost 1 -postCutoff 0.7 -doPlink 2 -out outputs/201/42-snps-50 > outputs/201/42-snps.out 2> outputs/201/42-snps.err &
@@ -243,8 +244,17 @@ plink --tped outputs/201/42-snps-50.tped --tfam outputs/201/42-snps-50.tfam --ou
 plink --ped outputs/201/42-snps-binary.ped --map outputs/201/42-snps-binary.map --recode vcf --allow-extra-chr -out outputs/201/42-snps-samples-recode
 
 module load bcftools
-bcftools reheader --samples bamlists/42.names -o outputs/200/42.renamed.vcf  outputs/200/42-snps-samples-recode.vcf 
+bcftools reheader --samples bamlists/42.names -o outputs/201/42.renamed.vcf  outputs/201/42-snps-samples-recode.vcf 
 
 #get MAFs
+bcftools +fill-tags outputs/200/42.renamed.vcf -- -t MAF  > outputs/201/42-maf.vcf
+
 ```
-	-> Number of sites retained after filtering: 587 
+
+Let's see...
+NC_037097.1 907011 is in called with G/A
+NC_037097.1  1439884 is in called with C/G
+NC_037097.1 2459924 is in called T/C
+
+These are checking out!!    
+
