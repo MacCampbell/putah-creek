@@ -189,3 +189,52 @@ TCCGCCTCCACTGTCCCTCTCCAGACCGC[C/T]GTGCCTGTGCAGCCC
 
 Looks good!!
 
+### Realign to the v1 genome
+in data/version1-align/
+
+bash ../../doAlign-rad-unzipped.sh to-align.txt /home/maccamp/genomes/chinook/GCF_002872995.1_Otsh_v1.0_genomic.fna.gz
+
+cat *stats > v1-align.txt
+
+files like PC_CHN_RST_2021_8.sort.flt.bam
+
+```{r}
+meta<-read_csv("meta/PUTSampleBarcodes_062623.csv") %>% separate(SampleName, into=c("Trib","Species","Method","Year","Number"), remove = FALSE) 
+stats<-read_csv("outputs/201/v1-align.txt", col_names =c("SampleName","Reads","Filtered","Coverage"))
+
+v1<-left_join(meta,stats) %>% mutate(Path=paste0("data/version1-align/",SampleName,".sort.flt.bam"))
+```
+
+
+```{r}
+v1rst<-v1 %>% filter(Method=="RST") 
+
+v1rst %>% filter(Filtered > 3e5) %>% group_by(Year) %>% summarise(Count=n(), Mean=mean(Filtered), Median=median(Filtered)) 
+
+```
+
+```{r}
+rst42<-v1rst %>% filter(Filtered > 3e5) 
+write_tsv(rst42 %>% ungroup() %>% select(Path), file="bamlists/42.bamlist", col_names = FALSE)
+write_tsv(rst42 %>% ungroup() %>% select(SampleName), file="bamlists/42.names", col_names = FALSE)
+
+```
+
+Let's call some snps...
+
+
+```{sh, eval=FALSE}
+srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
+-minInd 21 -bam bamlists/42.bamlist  -rf meta/chrom-list.txt \
+-ref  ~/genomes/chinook/GCF_002872995.1_Otsh_v1.0_genomic.fna \
+ -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
+-doGeno 2 -doPost 1 -postCutoff 0.7 -doPlink 2 -out outputs/201/42-snps-50 > outputs/201/42-snps.out 2> outputs/201/42-snps.err &
+
+#make vcf
+plink --tped outputs/201/42-snps-50.tped --tfam outputs/201/42-snps-50.tfam --out outputs/201/42-snps-binary --recode --allow-extra-chr --noweb
+plink --ped outputs/201/42-snps-binary.ped --map outputs/201/42-snps-binary.map --recode vcf --allow-extra-chr -out outputs/201/42-snps-samples-recode
+
+module load bcftools
+bcftools reheader --samples bamlists/42.names -o outputs/200/42.renamed.vcf  outputs/200/42-snps-samples-recode.vcf 
+
+```
