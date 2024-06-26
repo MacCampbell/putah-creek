@@ -247,3 +247,4 @@ bcftools reheader --samples bamlists/42.names -o outputs/200/42.renamed.vcf  out
 
 #get MAFs
 ```
+	-> Number of sites retained after filtering: 587 
