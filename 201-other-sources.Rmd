@@ -227,7 +227,7 @@ Need region file
 ```{r, eval=FALSE}
 regionfile<-newsites 
 regionfile %>% select(Chrom,Position) %>% write_tsv("meta/1338-sites.txt", col_names = FALSE)
-regionfile %>% select(Chrom) %>% write_tsv("meta/1338-chroms.txt", col_names = FALSE)
+regionfile %>% select(Chrom) %>% unique() %>% write_tsv("meta/1338-chroms.txt", col_names = FALSE)
 ```
 
 
@@ -247,8 +247,8 @@ module load bcftools
 bcftools reheader --samples bamlists/42.names -o outputs/201/42.renamed.vcf  outputs/201/42-snps-samples-recode.vcf 
 
 #get MAFs
-bcftools +fill-tags outputs/200/42.renamed.vcf -- -t MAF  > outputs/201/42-maf.vcf
-
+bcftools +fill-tags outputs/201/42.renamed.vcf > outputs/201/42-maf.vcf
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%MAF\t%NS\n' outputs/201/42-maf.vcf  > outputs/201/42-stats.tsv
 ```
 
 Let's see...
@@ -258,3 +258,42 @@ NC_037097.1 2459924 is in called T/C
 
 These are checking out!!    
 
+Merge for MAF O'Leary and MAF RST    
+	-> Number of sites retained after filtering: 587 
+
+```{r}
+calls<-read_tsv("outputs/201/42-stats.tsv", col_names = c("Chrom","Position","Major","Minor","MAFCall","NumSamples"))
+merged<-newsites %>% left_join(calls, by=c("Chrom","Position"))
+merged 
+merged %>% write_csv("outputs/201/merged-oleary-new-calls.csv")
+```
+
+```{r}
+merged %>% filter(Major.x==Major.y) %>% arrange(-MAFCall) %>% filter(NumSamples > 30)
+```
+
+```{r}
+merged  %>% arrange(-MAFCall) %>% filter(NumSamples > 20)
+```
+
+427 sites have the same major/minor alleles
+```{r}
+df<-merged  %>% filter(Major.x==Major.y)
+fit = lm(MAFCall ~ MAF , data = df)
+summary(fit)
+df$pred = predict(fit)
+
+```
+
+```{r}
+ggplot(df, aes(x=MAF, y=MAFCall)) + 
+  geom_point() +
+ # geom_line(aes(y=pred), lty=2, color="blue", size=1.5) +
+  ylim(0,0.5) +
+  xlim(0,0.5) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  ggtitle("RST called SNPs compared to O'Leary SNPs")
+
+ggsave("outputs/201/plot.jpeg")
+```
