@@ -222,10 +222,18 @@ write_tsv(rst42 %>% ungroup() %>% select(SampleName), file="bamlists/42.names", 
 
 Let's call some snps...
 
+Need region file
+
+```{r}
+regionfile<-newsites %>% mutate(Position=paste0(Chrom,":",Position))
+regionfile %>% select(Position) %>% write_tsv("meta/1338-sites.txt", col_names = FALSE)
+```
+
+
 
 ```{sh, eval=FALSE}
 srun -t 3:00:00 -p high --mem=32G --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 $HOME/angsd/angsd -nthreads 24 \
--minInd 21 -bam bamlists/42.bamlist  -rf meta/chrom-list.txt \
+-minInd 21 -bam bamlists/42.bamlist  -rf meta/1338-sites.txt \
 -ref  ~/genomes/chinook/GCF_002872995.1_Otsh_v1.0_genomic.fna \
  -minMapQ 10 -minQ 20 -GL 1 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 \
 -doGeno 2 -doPost 1 -postCutoff 0.7 -doPlink 2 -out outputs/201/42-snps-50 > outputs/201/42-snps.out 2> outputs/201/42-snps.err &
@@ -237,4 +245,5 @@ plink --ped outputs/201/42-snps-binary.ped --map outputs/201/42-snps-binary.map 
 module load bcftools
 bcftools reheader --samples bamlists/42.names -o outputs/200/42.renamed.vcf  outputs/200/42-snps-samples-recode.vcf 
 
+#get MAFs
 ```
